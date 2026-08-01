@@ -16,21 +16,22 @@ export interface GithubRepo {
 
 /** False when no GitHub OAuth client id was built in — sign-in stays unavailable. */
 export function isGithubConfigured(): boolean {
-  return Boolean(import.meta.env.VITE_GITHUB_CLIENT_ID)
+  return Boolean(import.meta.env.VITE_GITHUB_CLIENT_ID && import.meta.env.VITE_GITHUB_CLIENT_SECRET)
 }
 
-function clientId(): string {
+function clientCredentials(): { id: string; secret: string } {
   const id = import.meta.env.VITE_GITHUB_CLIENT_ID as string | undefined
-  if (!id) throw new Error('GitHub is not configured for this build.')
-  return id
+  const secret = import.meta.env.VITE_GITHUB_CLIENT_SECRET as string | undefined
+  if (!id || !secret) throw new Error('GitHub is not configured for this build.')
+  return { id, secret }
 }
 
 /**
- * Opens GitHub's OAuth consent via Chrome's identity flow, then exchanges the code for a token
- * with PKCE so no client secret has to ship in the extension.
+ * Opens GitHub's OAuth consent via Chrome's identity flow, then exchanges the code for a token.
+ * GitHub still requires the client secret on exchange; PKCE is sent alongside it.
  */
 export async function signInWithGithub(): Promise<{ token: string; login: string }> {
-  const id = clientId()
+  const { id, secret } = clientCredentials()
   const redirectUri = chrome.identity.getRedirectURL()
   const { verifier, challenge } = await createPkce()
   const state = randomUrlSafe(16)
@@ -55,7 +56,7 @@ export async function signInWithGithub(): Promise<{ token: string; login: string
   const code = returned.searchParams.get('code')
   if (!code) throw new Error('GitHub did not return an authorization code.')
 
-  const token = await exchangeCode({ clientId: id, code, redirectUri, verifier })
+  const token = await exchangeCode({ clientId: id, clientSecret: secret, code, redirectUri, verifier })
   const login = await fetchGithubLogin(token)
   return { token, login }
 }
@@ -74,6 +75,7 @@ function launchAuth(url: string): Promise<string> {
 
 async function exchangeCode(input: {
   clientId: string
+  clientSecret: string
   code: string
   redirectUri: string
   verifier: string
@@ -86,6 +88,7 @@ async function exchangeCode(input: {
     },
     body: JSON.stringify({
       client_id: input.clientId,
+      client_secret: input.clientSecret,
       code: input.code,
       redirect_uri: input.redirectUri,
       code_verifier: input.verifier,

@@ -78,10 +78,10 @@ Skip this and everything else still works — the Drive card just explains what 
 1. Create an **OAuth App** at `github.com/settings/developers`.
 2. Set the Authorization callback URL to `https://<your-extension-id>.chromiumapp.org/`
    (the ID is on `chrome://extensions` with Developer mode on).
-3. Put the client ID in `.env.local` as `VITE_GITHUB_CLIENT_ID`, then rebuild.
+3. Put the client ID and client secret in `.env` as `VITE_GITHUB_CLIENT_ID` and
+   `VITE_GITHUB_CLIENT_SECRET`, then rebuild.
 
-PKCE is used so no client secret ships in the extension. Skip this and everything else still
-works — the GitHub card just explains what is missing.
+Skip this and everything else still works — the GitHub card just explains what is missing.
 
 ## Setup order that works best
 

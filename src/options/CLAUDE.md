@@ -40,10 +40,10 @@ Connection syncs go through `replaceDocsForSource`, which clears that source fir
 ## Google Drive / GitHub setup
 
 Both connections use `chrome.identity` and need a client id compiled in via `.env.local`
-(`VITE_GOOGLE_CLIENT_ID`, `VITE_GITHUB_CLIENT_ID` — see `.env.example`). When missing,
+(`VITE_GOOGLE_CLIENT_ID`, `VITE_GITHUB_CLIENT_ID` + `VITE_GITHUB_CLIENT_SECRET` — see `.env.example`). When missing,
 `isDriveConfigured()` / `isGithubConfigured()` is false and the card shows a short notice instead
 of a dead button. Drive also needs the manifest `oauth2` block; GitHub uses `launchWebAuthFlow`
-with PKCE and does not.
+(with PKCE + client secret — GitHub still requires the secret on token exchange).
 
 ## Conventions
 
