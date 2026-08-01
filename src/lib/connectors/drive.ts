@@ -16,6 +16,8 @@ export interface DriveFile {
   name: string
   mimeType: string
   webViewLink?: string
+  /** Path relative to the synced root folder, used as the indexed title. */
+  path?: string
 }
 
 /** False when no Google OAuth client id was built into the manifest, which makes Drive unusable. */
@@ -55,29 +57,138 @@ async function driveFetch(token: string, path: string): Promise<Response> {
   const response = await fetch(`${DRIVE_API}${path}`, {
     headers: { Authorization: `Bearer ${token}` },
   })
-  if (response.status === 401) throw new Error('Google session expired. Reconnect Google Drive.')
-  if (!response.ok) throw new Error(`Google Drive request failed (${response.status}).`)
-  return response
+
+  if (response.ok) return response
+
+  if (response.status === 401) {
+    await clearCachedToken(token)
+    throw new Error('Google session expired. Disconnect and connect again.')
+  }
+
+  if (response.status === 403) {
+    await clearCachedToken(token)
+    const detail = await readGoogleError(response)
+    // Always surface Google's own words — our guesses have been wrong when the API is already on.
+    throw new Error(detail || 'Google Drive refused this request (403). Disconnect and connect again.')
+  }
+
+  throw new Error(`Google Drive request failed (${response.status}).`)
 }
 
-export async function listDriveFolders(token: string): Promise<DriveFolder[]> {
-  const query = encodeURIComponent(`mimeType = '${FOLDER_MIME}' and trashed = false`)
-  const response = await driveFetch(
-    token,
-    `/files?q=${query}&fields=files(id,name)&pageSize=200&orderBy=name`,
+async function clearCachedToken(token: string): Promise<void> {
+  await new Promise<void>((resolve) => chrome.identity.removeCachedAuthToken({ token }, () => resolve()))
+}
+
+async function readGoogleError(response: Response): Promise<string> {
+  try {
+    const body = (await response.json()) as {
+      error?: { message?: string; status?: string; errors?: { reason?: string; message?: string }[] }
+    }
+    const reason = body.error?.errors?.[0]?.reason
+    const message = body.error?.message ?? body.error?.errors?.[0]?.message ?? ''
+    if (reason && message) return `${message} (${reason})`
+    return message || reason || ''
+  } catch {
+    return ''
+  }
+}
+
+/** Confirms the Chrome-issued token actually carries drive.readonly before we hit the Drive API. */
+export async function assertDriveScope(token: string): Promise<void> {
+  const response = await fetch(
+    `https://www.googleapis.com/oauth2/v3/tokeninfo?access_token=${encodeURIComponent(token)}`,
   )
-  const body = (await response.json()) as { files?: DriveFolder[] }
-  return body.files ?? []
+  if (!response.ok) return
+  const body = (await response.json()) as { scope?: string; error_description?: string }
+  const scopes = body.scope?.split(/\s+/) ?? []
+  if (!scopes.includes('https://www.googleapis.com/auth/drive.readonly')) {
+    await clearCachedToken(token)
+    throw new Error(
+      'This Google sign-in is missing Drive access. Disconnect, connect again, and accept the Drive permission prompt.',
+    )
+  }
 }
 
-export async function listDriveFiles(token: string, folderId: string): Promise<DriveFile[]> {
+/** Folders directly inside a parent. Use `root` for My Drive. */
+export async function listChildFolders(token: string, parentId = 'root'): Promise<DriveFolder[]> {
+  await assertDriveScope(token)
+  const query = encodeURIComponent(
+    `'${parentId}' in parents and mimeType = '${FOLDER_MIME}' and trashed = false`,
+  )
+  const files = await listAllPages(token, query, 'files(id,name)&orderBy=name')
+  return files.map((file) => ({ id: file.id, name: file.name }))
+}
+
+/** Name search across the user's Drive folders. */
+export async function searchDriveFolders(token: string, name: string): Promise<DriveFolder[]> {
+  await assertDriveScope(token)
+  const trimmed = name.trim().replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+  if (!trimmed) return listChildFolders(token, 'root')
+
+  const query = encodeURIComponent(
+    `name contains '${trimmed}' and mimeType = '${FOLDER_MIME}' and trashed = false`,
+  )
+  const files = await listAllPages(token, query, 'files(id,name)&orderBy=name', 50)
+  return files.map((file) => ({ id: file.id, name: file.name }))
+}
+
+/**
+ * Every readable file under a folder, including nested subfolders. Titles use the relative path
+ * so "Applications / Acme / cover letter" stays distinguishable after sync.
+ */
+export async function listDriveFilesRecursive(
+  token: string,
+  folderId: string,
+  pathPrefix = '',
+): Promise<DriveFile[]> {
+  await assertDriveScope(token)
   const query = encodeURIComponent(`'${folderId}' in parents and trashed = false`)
-  const response = await driveFetch(
-    token,
-    `/files?q=${query}&fields=files(id,name,mimeType,webViewLink)&pageSize=200`,
-  )
-  const body = (await response.json()) as { files?: DriveFile[] }
-  return (body.files ?? []).filter((file) => isReadable(file.mimeType))
+  const children = await listAllPages(token, query, 'files(id,name,mimeType,webViewLink)&orderBy=folder,name')
+
+  const files: DriveFile[] = []
+  for (const child of children) {
+    const path = pathPrefix ? `${pathPrefix}/${child.name}` : child.name
+    const mimeType = child.mimeType ?? ''
+    if (mimeType === FOLDER_MIME) {
+      files.push(...(await listDriveFilesRecursive(token, child.id, path)))
+      continue
+    }
+    if (!isReadable(mimeType)) continue
+    files.push({
+      id: child.id,
+      name: child.name,
+      mimeType,
+      webViewLink: child.webViewLink,
+      path,
+    })
+  }
+  return files
+}
+
+async function listAllPages(
+  token: string,
+  query: string,
+  fieldsAndOrder: string,
+  pageSize = 200,
+): Promise<Array<{ id: string; name: string; mimeType?: string; webViewLink?: string }>> {
+  const collected: Array<{ id: string; name: string; mimeType?: string; webViewLink?: string }> = []
+  let pageToken: string | undefined
+
+  do {
+    const pageParam = pageToken ? `&pageToken=${encodeURIComponent(pageToken)}` : ''
+    const response = await driveFetch(
+      token,
+      `/files?q=${query}&fields=nextPageToken,${fieldsAndOrder}&pageSize=${pageSize}${pageParam}`,
+    )
+    const body = (await response.json()) as {
+      files?: Array<{ id: string; name: string; mimeType?: string; webViewLink?: string }>
+      nextPageToken?: string
+    }
+    collected.push(...(body.files ?? []))
+    pageToken = body.nextPageToken
+  } while (pageToken)
+
+  return collected
 }
 
 export function isReadable(mimeType: string): boolean {

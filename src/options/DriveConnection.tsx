@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 
 import { getConnections, patchConnections } from '@/lib/connections'
 import type { DriveConnection as DriveState } from '@/lib/connections'
-import { getDriveToken, isDriveConfigured, listDriveFolders, revokeDriveToken } from '@/lib/connectors/drive'
+import { getDriveToken, isDriveConfigured, revokeDriveToken } from '@/lib/connectors/drive'
 import type { DriveFolder } from '@/lib/connectors/drive'
 import { syncDrive } from '@/lib/connectors/sync'
 import { replaceDocsForSource } from '@/lib/db'
 import { errorMessage } from '@/lib/messages'
+import { DriveFolderPicker } from './DriveFolderPicker'
 import { SyncStatus, describeSync } from './SyncStatus'
 
 interface DriveConnectionProps {
@@ -15,8 +16,8 @@ interface DriveConnectionProps {
 
 export function DriveConnection({ onChanged }: DriveConnectionProps) {
   const [drive, setDrive] = useState<DriveState | null>(null)
-  const [folders, setFolders] = useState<DriveFolder[]>([])
   const [isConnected, setIsConnected] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
@@ -30,17 +31,8 @@ export function DriveConnection({ onChanged }: DriveConnectionProps) {
       const token = await getDriveToken(false)
       if (!token) return
       setIsConnected(true)
-      await loadFolders(token)
     })()
   }, [configured])
-
-  const loadFolders = async (token: string) => {
-    try {
-      setFolders(await listDriveFolders(token))
-    } catch (caught) {
-      setError(errorMessage(caught))
-    }
-  }
 
   const run = async (label: string, task: () => Promise<void>) => {
     setBusy(label)
@@ -55,20 +47,19 @@ export function DriveConnection({ onChanged }: DriveConnectionProps) {
     }
   }
 
+  const saveFolder = async (folder: DriveFolder) => {
+    const next = { folderId: folder.id, folderName: folder.name, syncedAt: null }
+    await patchConnections({ drive: next })
+    setDrive(next)
+    setPickerOpen(false)
+  }
+
   const onConnect = () =>
     run('connect', async () => {
       const token = await getDriveToken(true)
       if (!token) throw new Error('Google sign-in was cancelled.')
       setIsConnected(true)
-      await loadFolders(token)
-    })
-
-  const onPickFolder = (folderId: string) =>
-    run('folder', async () => {
-      const folder = folders.find((entry) => entry.id === folderId)
-      const next = { folderId, folderName: folder?.name ?? '', syncedAt: null }
-      await patchConnections({ drive: next })
-      setDrive(next)
+      setPickerOpen(true)
     })
 
   const onSync = () =>
@@ -87,7 +78,7 @@ export function DriveConnection({ onChanged }: DriveConnectionProps) {
       await patchConnections({ drive: next })
       setDrive(next)
       setIsConnected(false)
-      setFolders([])
+      setPickerOpen(false)
       onChanged()
     })
 
@@ -104,8 +95,8 @@ export function DriveConnection({ onChanged }: DriveConnectionProps) {
         )}
       </div>
       <p className="hint">
-        Irke reads one folder, read-only. Put your resume, cover letters, and written stories in it —
-        Docs, PDFs, and text files all work.
+        Irke reads one folder and everything inside it — nested folders included. Put your resume,
+        cover letters, and written stories there; Docs, PDFs, and text files all work.
       </p>
 
       {!configured ? (
@@ -118,21 +109,14 @@ export function DriveConnection({ onChanged }: DriveConnectionProps) {
         </div>
       ) : (
         <>
-          <div>
-            <label htmlFor="drive-folder">Folder</label>
-            <select
-              id="drive-folder"
-              value={drive.folderId}
-              disabled={busy !== null}
-              onChange={(event) => void onPickFolder(event.target.value)}
-            >
-              <option value="">Select a folder…</option>
-              {folders.map((folder) => (
-                <option key={folder.id} value={folder.id}>
-                  {folder.name}
-                </option>
-              ))}
-            </select>
+          <div className="folder-pick row space-between">
+            <div className="folder-pick-main">
+              <div className="hint">Folder</div>
+              <div className="doc-title">{drive.folderName || 'None selected'}</div>
+            </div>
+            <button className="primary" onClick={() => setPickerOpen(true)} disabled={busy !== null}>
+              {drive.folderId ? 'Change folder' : 'Choose folder'}
+            </button>
           </div>
 
           <div className="row">
@@ -149,6 +133,13 @@ export function DriveConnection({ onChanged }: DriveConnectionProps) {
 
       {status && <div className="notice info">{status}</div>}
       {error && <div className="notice error">{error}</div>}
+
+      {pickerOpen && (
+        <DriveFolderPicker
+          onPick={(folder) => void run('folder', () => saveFolder(folder))}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   )
 }

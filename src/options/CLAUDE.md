@@ -10,6 +10,7 @@ Options page React UI. Opens on first install and from the side panel **Context*
 | `Options.tsx` | Tab shell: Context / Answer bank / AI provider |
 | `ContextTab.tsx` | Hosts both connections, the story composer, file upload, and the indexed-doc list |
 | `DriveConnection.tsx` | Google OAuth, folder picker, sync, disconnect |
+| `DriveFolderPicker.tsx` | Navigable Drive folder browser (browse + search) |
 | `GithubConnection.tsx` | GitHub OAuth sign-in, repo selection, sync, disconnect |
 | `SyncStatus.tsx` | Last-synced line + "indexed N, skipped M" summary |
 | `AnswersTab.tsx` | Edit / delete saved answer-bank entries |

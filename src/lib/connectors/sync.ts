@@ -1,7 +1,7 @@
 import { getConnections, patchConnections } from '../connections'
 import { replaceDocsForSource } from '../db'
 import type { ContextDoc } from '../types'
-import { getDriveToken, listDriveFiles, readDriveFile } from './drive'
+import { getDriveToken, listDriveFilesRecursive, readDriveFile } from './drive'
 import { listGithubRepos, readRepoContext } from './github'
 import { extractPdfText } from './pdf'
 
@@ -19,7 +19,7 @@ export async function syncDrive(): Promise<SyncResult> {
   const token = await getDriveToken(false)
   if (!token) throw new Error('Google session expired. Reconnect Google Drive.')
 
-  const files = await listDriveFiles(token, connections.drive.folderId)
+  const files = await listDriveFilesRecursive(token, connections.drive.folderId)
   const docs: ContextDoc[] = []
   const skipped: string[] = []
 
@@ -27,20 +27,20 @@ export async function syncDrive(): Promise<SyncResult> {
     try {
       const text = await readDriveFile(token, file)
       if (text.trim().length < MIN_USEFUL_CHARS) {
-        skipped.push(file.name)
+        skipped.push(file.path ?? file.name)
         continue
       }
       docs.push({
         id: `drive:${file.id}`,
         source: 'drive',
-        title: file.name,
+        title: file.path ?? file.name,
         text: text.trim(),
         createdAt: Date.now(),
         externalId: file.id,
         url: file.webViewLink,
       })
     } catch {
-      skipped.push(file.name)
+      skipped.push(file.path ?? file.name)
     }
   }
 

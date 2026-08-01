@@ -69,9 +69,12 @@ Drive needs an OAuth client that belongs to you, because there is no Irke server
 1. In the Google Cloud console, enable the **Google Drive API**.
 2. Create an **OAuth client ID** with application type **Chrome Extension**, using your unpacked
    extension's ID from `chrome://extensions`.
-3. Copy `.env.example` to `.env.local`, set `VITE_GOOGLE_CLIENT_ID`, then `npm run build` and reload.
+3. Put it in `.env` as `VITE_GOOGLE_CLIENT_ID`, then rebuild.
 
 Skip this and everything else still works — the Drive card just explains what is missing.
+
+Folder picking uses Irke's own Drive browser (browse + search). Google's official Picker UI cannot
+run inside a Chrome extension — sandboxed pages get a `null` origin and Google blocks them with CORS.
 
 ### Enabling GitHub
 

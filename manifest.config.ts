@@ -5,7 +5,7 @@ import pkg from './package.json'
 
 /**
  * Your own Google Cloud OAuth client (application type: Chrome Extension), set as
- * VITE_GOOGLE_CLIENT_ID in `.env.local`. Chrome refuses to load the extension if `oauth2` is
+ * VITE_GOOGLE_CLIENT_ID in `.env`. Chrome refuses to load the extension if `oauth2` is
  * present but empty, so the block is omitted entirely when it is unset — everything except the
  * Google Drive connection still works.
  */
