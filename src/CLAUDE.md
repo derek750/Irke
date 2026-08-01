@@ -13,6 +13,10 @@ Chrome extension source. Four surfaces share one TypeScript package via path ali
 
 Shared code lives under `lib/` and `ui/`. UI surfaces are React 19 + Vite; background and content are plain TypeScript modules (no React).
 
+## Scope
+
+Irke answers **story questions only** — cover letters, "tell us about a time", "why this company", "what are you proud of". It deliberately does not touch name, email, phone, salary, start date, work authorization, or demographics. There is no profile and no autofill of specifics. `content/detect.ts` drops those fields before they ever reach the UI.
+
 ## Message protocol
 
 All cross-context messages are typed in `lib/messages.ts`:
@@ -32,9 +36,8 @@ When adding a message type:
 
 Generation (`background/generate.ts`) always tries, in order:
 
-1. **Profile** — if `question.profileKey` is set and the profile has a value (zero cost)
-2. **Answer bank** — exact fingerprint match unless `regenerate: true`
-3. **Brain + LLM** — BM25 over IndexedDB chunks + BYOK completion
+1. **Answer bank** — exact fingerprint match unless `regenerate: true` (zero cost)
+2. **Context + LLM** — BM25 over IndexedDB chunks + BYOK completion
 
 Do not reorder this without an explicit product change.
 
@@ -42,14 +45,15 @@ Do not reorder this without an explicit product change.
 
 | Store | API | Contents |
 |-------|-----|----------|
-| `chrome.storage.local` | `lib/settings.ts` | Settings (provider, API key, model, temperature, extra instructions), Profile |
-| IndexedDB `irke` | `lib/db.ts` | Brain docs, chunks, answer-bank entries |
+| `chrome.storage.local` | `lib/settings.ts` | Settings (provider, API key, model, temperature, extra instructions) |
+| `chrome.storage.local` | `lib/connections.ts` | Drive folder + GitHub token / repo selection |
+| IndexedDB `irke` | `lib/db.ts` | Context docs, chunks, answer-bank entries |
 
-UI pages that touch IndexedDB (options Brain / Answers tabs) call `db.ts` directly. Generation and answer-bank lookups run in the service worker so the side panel stays thin.
+UI pages that touch IndexedDB (options Context / Answers tabs) call `db.ts` directly. Generation and answer-bank lookups run in the service worker so the side panel stays thin. Drive and GitHub syncs run in the options page, not the worker.
 
 ## Types
 
-Canonical domain types live in `lib/types.ts` (`Profile`, `BrainDoc`, `DetectedQuestion`, `PageScan`, `GeneratedAnswer`, etc.). Import from there — do not duplicate shapes in UI files.
+Canonical domain types live in `lib/types.ts` (`ContextDoc`, `ContextSource`, `StoryTopic`, `DetectedQuestion`, `PageScan`, `GeneratedAnswer`, etc.). Import from there — do not duplicate shapes in UI files.
 
 ## Conventions
 

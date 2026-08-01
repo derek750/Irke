@@ -1,16 +1,15 @@
-import type { BrainChunk, BrainDocKind, RetrievedChunk } from '../types'
+import type { ContextChunk, ContextSource, RetrievedChunk } from '../types'
 import { tokenize } from './tokenize'
 
 const K1 = 1.5
 const B = 0.75
 
-/** Answers about "me" should lean on my own material even when the JD dominates the query. */
-const KIND_BOOST: Record<BrainDocKind, number> = {
-  resume: 1.25,
-  app_answer: 1.2,
-  about_me: 1.15,
-  project: 1.05,
-  writing: 1,
+/** Deliberately written stories beat incidental material scraped from Drive or a repo. */
+const SOURCE_BOOST: Record<ContextSource, number> = {
+  story: 1.3,
+  document: 1.15,
+  drive: 1.1,
+  github: 1,
 }
 
 interface RetrieveOptions {
@@ -24,7 +23,7 @@ interface RetrieveOptions {
  */
 export function retrieve(
   query: string,
-  chunks: BrainChunk[],
+  chunks: ContextChunk[],
   { limit = 8, minScore = 0.01 }: RetrieveOptions = {},
 ): RetrievedChunk[] {
   if (!chunks.length) return []
@@ -53,7 +52,7 @@ export function retrieve(
       const normalization = K1 * (1 - B + (B * lengths[index]) / averageLength)
       score += idf * ((frequency * (K1 + 1)) / (frequency + normalization))
     }
-    return { chunk, score: score * KIND_BOOST[chunk.kind] }
+    return { chunk, score: score * SOURCE_BOOST[chunk.source] }
   })
 
   return scored

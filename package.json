@@ -3,15 +3,18 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Chrome extension that reads job descriptions and application questions, then drafts grounded answers from your personal brain.",
+  "description": "Chrome extension that drafts the story questions on a job application — cover letters, behavioral prompts, why this company — from your own Drive, GitHub, and written stories.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "smoke": "esbuild scripts/smoke-retrieval.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/irke-smoke.mjs --log-level=error && node node_modules/.cache/irke-smoke.mjs",
+    "smoke": "npm run smoke:retrieval && npm run smoke:detect",
+    "smoke:retrieval": "esbuild scripts/smoke-retrieval.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/irke-retrieval.mjs --log-level=error && node node_modules/.cache/irke-retrieval.mjs",
+    "smoke:detect": "esbuild scripts/smoke-detect.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/irke-detect.mjs --log-level=error && node node_modules/.cache/irke-detect.mjs",
     "preview": "vite preview"
   },
   "dependencies": {
+    "pdfjs-dist": "^6.2.108",
     "react": "^19.1.1",
     "react-dom": "^19.1.1"
   },

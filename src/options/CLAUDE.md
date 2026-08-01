@@ -1,15 +1,17 @@
 # `src/options/`
 
-Options page React UI. Opens on first install and from the side panel **Brain** button. This is where the user loads context and configures the provider — not where generation runs.
+Options page React UI. Opens on first install and from the side panel **Context** button. This is where the user connects their material and configures the provider — not where generation runs.
 
 ## Files
 
 | File | Responsibility |
 |------|----------------|
 | `index.html` / `main.tsx` | Vite entry |
-| `Options.tsx` | Tab shell: Brain / Profile / Answer bank / AI provider |
-| `BrainTab.tsx` | Add/list/delete brain docs; chunk + index on save |
-| `ProfileTab.tsx` | Repeat autofill facts → `chrome.storage.local` |
+| `Options.tsx` | Tab shell: Context / Answer bank / AI provider |
+| `ContextTab.tsx` | Hosts both connections, the story composer, file upload, and the indexed-doc list |
+| `DriveConnection.tsx` | Google OAuth, folder picker, sync, disconnect |
+| `GithubConnection.tsx` | Token entry, repo selection, sync, disconnect |
+| `SyncStatus.tsx` | Last-synced line + "indexed N, skipped M" summary |
 | `AnswersTab.tsx` | Edit / delete saved answer-bank entries |
 | `AiTab.tsx` | Provider, model, API key, temperature, extra instructions |
 | `options.css` | Layout |
@@ -18,32 +20,37 @@ Options page React UI. Opens on first install and from the side panel **Brain** 
 
 | Tab | Persistence | Notes |
 |-----|-------------|-------|
-| Brain | IndexedDB via `db.ts` + `chunkDoc` | Text / Markdown upload only; PDF → tell user to paste |
-| Profile | `saveProfile` | Keys must stay aligned with `PROFILE_FIELD_LABELS` / content `PROFILE_PATTERNS` |
+| Context | IndexedDB via `db.ts` + `chunkDoc`; connection state in `chrome.storage.local` | Syncs run here, not in the worker |
 | Answer bank | IndexedDB | Fingerprints are immutable keys; editing updates answer text only |
 | AI provider | `saveSettings` | Switching provider resets model to `DEFAULT_MODELS[provider]` |
 
-## Brain ingest
+There is no Profile tab. Irke does not answer name / email / salary / work-authorization questions, so it has nothing to store for them.
 
-On **Add to brain**:
+## Context ingest
 
-1. Build `BrainDoc` (`crypto.randomUUID`, kind, title, text, `createdAt`)
-2. `putDoc`
-3. `replaceChunksForDoc(doc.id, chunkDoc(doc))`
+Four ways in, all landing in the same index via `saveDoc` (`putDoc` + `replaceChunksForDoc`):
 
-On **Remove**: `deleteDocAndChunks` (doc + all chunks for that `docId`).
+1. **Story** — typed into the tab, `source: 'story'`
+2. **Upload** — PDF / txt / md through `readUploadedFile`, `source: 'document'`
+3. **Google Drive** — `syncDrive()` over one picked folder, `source: 'drive'`
+4. **GitHub** — `syncGithub()` over the selected repos, `source: 'github'`
 
-Do not leave orphan chunks. Do not call the LLM from this page.
+Connection syncs go through `replaceDocsForSource`, which clears that source first. Never leave orphan chunks; never call the LLM from this page.
+
+## Google Drive setup
+
+`chrome.identity.getAuthToken` needs an OAuth client id compiled into the manifest via `VITE_GOOGLE_CLIENT_ID` (see `.env.example`). When it is missing, `isDriveConfigured()` is false and the card explains the setup instead of offering a dead button. The manifest omits the `oauth2` block entirely in that case — Chrome refuses to load an extension with an empty `client_id`.
 
 ## Conventions
 
-- Local React state + explicit Save buttons (no autosave) for profile / AI settings.
+- Local React state + explicit Save buttons (no autosave) for AI settings; connection edits save immediately since each is a single discrete choice.
 - Reuse `theme.css` primitives; keep copy calm and instructional.
 - User-facing errors via `.notice.error` — never dump stack traces.
-- When adding a profile field: update `Profile` in `types.ts`, labels in `settings.ts`, patterns in `content/detect.ts`, and the Profile tab grid (it iterates keys automatically once labels exist).
+- Long-running work (sync, PDF parse) sets a `busy` label and disables the card's buttons.
 
 ## What not to do
 
-- Do not store API keys in IndexedDB or log them.
+- Do not store API keys or the GitHub token in IndexedDB, and never log either.
+- Do not index repository source files — description and README prose only.
 - Do not add a cloud sync backend from this page.
 - Avoid new form libraries — native inputs match the rest of the extension.

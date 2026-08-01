@@ -1,17 +1,33 @@
-import { PROFILE_FIELD_LABELS } from './settings'
-import type { DetectedQuestion, JobContext, Profile, RetrievedChunk } from './types'
+import type { DetectedQuestion, JobContext, RetrievedChunk, StoryTopic } from './types'
 
 export const NEEDS_INPUT_MARKER = '[NEED INPUT]'
 
 const MAX_JD_CHARS = 4000
 
+const TOPIC_GUIDANCE: Record<StoryTopic, string> = {
+  cover_letter:
+    'Write a short cover letter. Open with why this role, spend the middle on one or two concrete things you have actually done, and close on what you want to work on next.',
+  why_company:
+    'Say what specifically about this company or its work pulls you in, and tie it to something you have already done or care about. No flattery that could be pasted into any other application.',
+  why_role:
+    'Connect what the role asks for to work you have actually done. Be concrete about the part of the job you want most.',
+  behavioral:
+    'Tell one real story from the excerpts: the situation, what you personally did, and how it turned out. One story, not a summary of several.',
+  strengths:
+    'Name the strength plainly, then earn it with a specific example from the excerpts rather than adjectives.',
+  project:
+    'Pick one project from the excerpts. Cover what it was, the part you owned, the interesting decision or obstacle, and where it ended up.',
+  open_ended:
+    'Answer directly and personally, grounded in a specific example from the excerpts rather than generalities.',
+}
+
 export function buildSystemPrompt(extraInstructions: string): string {
   const base = [
-    'You are drafting job application answers on behalf of a candidate.',
-    'Write in first person, as the candidate, in their own voice.',
-    'Ground every factual claim in the provided profile, brain excerpts, or job description.',
-    `Never invent employers, job titles, dates, degrees, certifications, or metrics. If a required fact is missing, write ${NEEDS_INPUT_MARKER} where it belongs.`,
-    'Match the tone of the candidate past answers when excerpts are available.',
+    'You are drafting the open-ended, story-style questions on a job application, on behalf of a candidate.',
+    'Write in first person, as the candidate, in their own voice and at their own level of plainness.',
+    'Ground every factual claim in the provided context excerpts or the job description. The excerpts are the candidate own material: stories they wrote, their documents, their Google Drive files, and their GitHub projects.',
+    `Never invent employers, job titles, dates, degrees, certifications, metrics, or anecdotes. If the story needs a fact you were not given, write ${NEEDS_INPUT_MARKER} where it belongs.`,
+    'Prefer one concrete example over several vague ones. No corporate filler, no "I am passionate about" openers.',
     'Return only the answer text. No preamble, no quotes, no field label, no markdown headings.',
   ].join('\n')
 
@@ -22,10 +38,9 @@ export function buildSystemPrompt(extraInstructions: string): string {
 export function buildUserPrompt(input: {
   job: JobContext
   question: DetectedQuestion
-  profile: Profile
   retrieved: RetrievedChunk[]
 }): string {
-  const { job, question, profile, retrieved } = input
+  const { job, question, retrieved } = input
   const sections: string[] = []
 
   sections.push(
@@ -36,21 +51,17 @@ export function buildUserPrompt(input: {
     sections.push(`## Job description\n${job.descriptionText.slice(0, MAX_JD_CHARS)}`)
   }
 
-  const profileLines = (Object.keys(PROFILE_FIELD_LABELS) as (keyof Profile)[])
-    .filter((key) => profile[key].trim())
-    .map((key) => `${PROFILE_FIELD_LABELS[key]}: ${profile[key]}`)
-  if (profileLines.length) sections.push(`## Candidate profile\n${profileLines.join('\n')}`)
-
   if (retrieved.length) {
     const excerpts = retrieved.map((entry, index) => `### Excerpt ${index + 1}\n${entry.chunk.text}`)
-    sections.push(`## Brain excerpts (the candidate own documents)\n${excerpts.join('\n\n')}`)
+    sections.push(`## Context excerpts (the candidate own material)\n${excerpts.join('\n\n')}`)
   } else {
     sections.push(
-      '## Brain excerpts\nNone matched this question. Rely on the profile only and mark missing facts.',
+      `## Context excerpts\nNothing matched this question. Do not invent a story — sketch the shape of an answer and mark every missing fact with ${NEEDS_INPUT_MARKER}.`,
     )
   }
 
   sections.push(`## Question to answer\n${question.label}`)
+  sections.push(`## How to answer\n${TOPIC_GUIDANCE[question.topic]}`)
   sections.push(`## Constraints\n${describeConstraints(question)}`)
 
   return sections.join('\n\n')
@@ -59,19 +70,14 @@ export function buildUserPrompt(input: {
 function describeConstraints(question: DetectedQuestion): string {
   const constraints: string[] = []
 
-  if (question.inputKind === 'textarea') {
-    const budget = question.maxLength
+  constraints.push(
+    question.maxLength
       ? `Stay under ${question.maxLength} characters.`
-      : 'Aim for 100-180 words.'
-    constraints.push(budget)
-    constraints.push('Use short paragraphs. No bullet lists unless the question asks for a list.')
-  } else if (question.inputKind === 'text') {
-    constraints.push('Answer in one short line. No sentences longer than needed.')
-  }
+      : question.topic === 'cover_letter'
+        ? 'Aim for 200-300 words.'
+        : 'Aim for 100-180 words.',
+  )
+  constraints.push('Use short paragraphs. No bullet lists unless the question asks for a list.')
 
-  if (question.options.length) {
-    constraints.push(`Choose exactly one of these options, copied verbatim: ${question.options.join(' | ')}`)
-  }
-
-  return constraints.join('\n') || 'Answer concisely.'
+  return constraints.join('\n')
 }
