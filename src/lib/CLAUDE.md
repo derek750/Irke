@@ -30,7 +30,7 @@ Schema upgrades go through `DB_VERSION` + `onupgradeneeded` in `db.ts`. Bump the
 | File | Notes |
 |------|-------|
 | `connectors/drive.ts` | `chrome.identity.getAuthToken` for OAuth; read-only scope; one user-picked folder |
-| `connectors/github.ts` | Personal access token; description + topics + README only, never source files |
+| `connectors/github.ts` | `chrome.identity.launchWebAuthFlow` + PKCE; description + topics + README only, never source files |
 | `connectors/pdf.ts` | `pdfjs-dist` with a bundled worker (CSP forbids a CDN worker) |
 | `connectors/sync.ts` | `syncDrive` / `syncGithub` / `readUploadedFile` — turn remote material into `ContextDoc`s |
 

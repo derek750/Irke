@@ -8,7 +8,7 @@ export interface DriveConnection {
 }
 
 export interface GithubConnection {
-  /** Personal access token. Local only, never logged, never sent anywhere but api.github.com. */
+  /** OAuth access token from sign-in. Local only, never logged, never sent anywhere but api.github.com. */
   token: string
   login: string
   /** `owner/repo` for each repo the user opted in to. */

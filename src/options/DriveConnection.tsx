@@ -109,11 +109,7 @@ export function DriveConnection({ onChanged }: DriveConnectionProps) {
       </p>
 
       {!configured ? (
-        <div className="notice info">
-          No Google OAuth client is built into this extension. Create one in Google Cloud (application
-          type: Chrome Extension), put it in <code>.env.local</code> as{' '}
-          <code>VITE_GOOGLE_CLIENT_ID</code>, and rebuild.
-        </div>
+        <div className="notice info">Google Drive is not configured for this build.</div>
       ) : !isConnected ? (
         <div className="row">
           <button className="primary" onClick={onConnect} disabled={busy !== null}>

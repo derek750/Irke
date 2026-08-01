@@ -75,10 +75,13 @@ Skip this and everything else still works — the Drive card just explains what 
 
 ### Enabling GitHub
 
-Create a read-only personal access token at `github.com/settings/tokens` (classic tokens need
-`repo` only if you want private repos; public repos need no scope at all), paste it into the GitHub
-card, and pick your repositories. The token is stored in `chrome.storage.local` and is only ever
-sent to `api.github.com`.
+1. Create an **OAuth App** at `github.com/settings/developers`.
+2. Set the Authorization callback URL to `https://<your-extension-id>.chromiumapp.org/`
+   (the ID is on `chrome://extensions` with Developer mode on).
+3. Put the client ID in `.env.local` as `VITE_GITHUB_CLIENT_ID`, then rebuild.
+
+PKCE is used so no client secret ships in the extension. Skip this and everything else still
+works — the GitHub card just explains what is missing.
 
 ## Setup order that works best
 
@@ -100,7 +103,7 @@ wins, with job context borrowed from the top frame when the form frame has none.
 - Never submits a form. You always click Submit yourself.
 - Never touches CAPTCHA, honeypot, password, OTP, SSN, or payment fields.
 - Never uploads files, and never reads Drive or GitHub outside the folder and repos you chose.
-- Your API key and GitHub token live in `chrome.storage.local`; context and saved answers live in
+- Your API key and OAuth tokens live in `chrome.storage.local`; context and saved answers live in
   IndexedDB. Neither is ever logged.
 
 ## Project layout

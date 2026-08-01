@@ -1,6 +1,9 @@
 const GITHUB_API = 'https://api.github.com'
+const GITHUB_AUTHORIZE = 'https://github.com/login/oauth/authorize'
+const GITHUB_TOKEN = 'https://github.com/login/oauth/access_token'
 
 const MAX_README_CHARS = 20_000
+const OAUTH_SCOPES = 'read:user repo'
 
 export interface GithubRepo {
   fullName: string
@@ -11,20 +14,123 @@ export interface GithubRepo {
   url: string
 }
 
+/** False when no GitHub OAuth client id was built in — sign-in stays unavailable. */
+export function isGithubConfigured(): boolean {
+  return Boolean(import.meta.env.VITE_GITHUB_CLIENT_ID)
+}
+
+function clientId(): string {
+  const id = import.meta.env.VITE_GITHUB_CLIENT_ID as string | undefined
+  if (!id) throw new Error('GitHub is not configured for this build.')
+  return id
+}
+
+/**
+ * Opens GitHub's OAuth consent via Chrome's identity flow, then exchanges the code for a token
+ * with PKCE so no client secret has to ship in the extension.
+ */
+export async function signInWithGithub(): Promise<{ token: string; login: string }> {
+  const id = clientId()
+  const redirectUri = chrome.identity.getRedirectURL()
+  const { verifier, challenge } = await createPkce()
+  const state = randomUrlSafe(16)
+
+  const authUrl = new URL(GITHUB_AUTHORIZE)
+  authUrl.searchParams.set('client_id', id)
+  authUrl.searchParams.set('redirect_uri', redirectUri)
+  authUrl.searchParams.set('scope', OAUTH_SCOPES)
+  authUrl.searchParams.set('state', state)
+  authUrl.searchParams.set('code_challenge', challenge)
+  authUrl.searchParams.set('code_challenge_method', 'S256')
+
+  const responseUrl = await launchAuth(authUrl.toString())
+  const returned = new URL(responseUrl)
+  const error = returned.searchParams.get('error_description') ?? returned.searchParams.get('error')
+  if (error) throw new Error(error)
+
+  if (returned.searchParams.get('state') !== state) {
+    throw new Error('GitHub sign-in could not be verified. Try again.')
+  }
+
+  const code = returned.searchParams.get('code')
+  if (!code) throw new Error('GitHub did not return an authorization code.')
+
+  const token = await exchangeCode({ clientId: id, code, redirectUri, verifier })
+  const login = await fetchGithubLogin(token)
+  return { token, login }
+}
+
+function launchAuth(url: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    chrome.identity.launchWebAuthFlow({ url, interactive: true }, (responseUrl) => {
+      if (chrome.runtime.lastError || !responseUrl) {
+        reject(new Error(chrome.runtime.lastError?.message ?? 'GitHub sign-in was cancelled.'))
+        return
+      }
+      resolve(responseUrl)
+    })
+  })
+}
+
+async function exchangeCode(input: {
+  clientId: string
+  code: string
+  redirectUri: string
+  verifier: string
+}): Promise<string> {
+  const response = await fetch(GITHUB_TOKEN, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      client_id: input.clientId,
+      code: input.code,
+      redirect_uri: input.redirectUri,
+      code_verifier: input.verifier,
+    }),
+  })
+
+  if (!response.ok) throw new Error(`GitHub token exchange failed (${response.status}).`)
+
+  const body = (await response.json()) as { access_token?: string; error_description?: string; error?: string }
+  if (!body.access_token) {
+    throw new Error(body.error_description ?? body.error ?? 'GitHub did not return an access token.')
+  }
+  return body.access_token
+}
+
+async function createPkce(): Promise<{ verifier: string; challenge: string }> {
+  const verifier = randomUrlSafe(32)
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier))
+  return { verifier, challenge: base64Url(new Uint8Array(digest)) }
+}
+
+function randomUrlSafe(byteLength: number): string {
+  return base64Url(crypto.getRandomValues(new Uint8Array(byteLength)))
+}
+
+function base64Url(bytes: Uint8Array): string {
+  let binary = ''
+  for (const byte of bytes) binary += String.fromCharCode(byte)
+  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+}
+
 async function githubFetch(token: string, path: string, accept = 'application/vnd.github+json') {
   const response = await fetch(`${GITHUB_API}${path}`, {
     headers: { Authorization: `Bearer ${token}`, Accept: accept, 'X-GitHub-Api-Version': '2022-11-28' },
   })
-  if (response.status === 401) throw new Error('That GitHub token was rejected. Check it and try again.')
+  if (response.status === 401) throw new Error('GitHub session expired. Sign in again.')
   if (response.status === 403) throw new Error('GitHub rate limit or scope problem. Try again later.')
   return response
 }
 
-export async function verifyGithubToken(token: string): Promise<string> {
+export async function fetchGithubLogin(token: string): Promise<string> {
   const response = await githubFetch(token, '/user')
   if (!response.ok) throw new Error(`GitHub request failed (${response.status}).`)
   const body = (await response.json()) as { login?: string }
-  if (!body.login) throw new Error('GitHub did not return an account for that token.')
+  if (!body.login) throw new Error('GitHub did not return an account.')
   return body.login
 }
 

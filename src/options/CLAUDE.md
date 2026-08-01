@@ -10,7 +10,7 @@ Options page React UI. Opens on first install and from the side panel **Context*
 | `Options.tsx` | Tab shell: Context / Answer bank / AI provider |
 | `ContextTab.tsx` | Hosts both connections, the story composer, file upload, and the indexed-doc list |
 | `DriveConnection.tsx` | Google OAuth, folder picker, sync, disconnect |
-| `GithubConnection.tsx` | Token entry, repo selection, sync, disconnect |
+| `GithubConnection.tsx` | GitHub OAuth sign-in, repo selection, sync, disconnect |
 | `SyncStatus.tsx` | Last-synced line + "indexed N, skipped M" summary |
 | `AnswersTab.tsx` | Edit / delete saved answer-bank entries |
 | `AiTab.tsx` | Provider, model, API key, temperature, extra instructions |
@@ -37,9 +37,13 @@ Four ways in, all landing in the same index via `saveDoc` (`putDoc` + `replaceCh
 
 Connection syncs go through `replaceDocsForSource`, which clears that source first. Never leave orphan chunks; never call the LLM from this page.
 
-## Google Drive setup
+## Google Drive / GitHub setup
 
-`chrome.identity.getAuthToken` needs an OAuth client id compiled into the manifest via `VITE_GOOGLE_CLIENT_ID` (see `.env.example`). When it is missing, `isDriveConfigured()` is false and the card explains the setup instead of offering a dead button. The manifest omits the `oauth2` block entirely in that case — Chrome refuses to load an extension with an empty `client_id`.
+Both connections use `chrome.identity` and need a client id compiled in via `.env.local`
+(`VITE_GOOGLE_CLIENT_ID`, `VITE_GITHUB_CLIENT_ID` — see `.env.example`). When missing,
+`isDriveConfigured()` / `isGithubConfigured()` is false and the card shows a short notice instead
+of a dead button. Drive also needs the manifest `oauth2` block; GitHub uses `launchWebAuthFlow`
+with PKCE and does not.
 
 ## Conventions
 
@@ -50,7 +54,7 @@ Connection syncs go through `replaceDocsForSource`, which clears that source fir
 
 ## What not to do
 
-- Do not store API keys or the GitHub token in IndexedDB, and never log either.
+- Do not store API keys or OAuth tokens in IndexedDB, and never log either.
 - Do not index repository source files — description and README prose only.
 - Do not add a cloud sync backend from this page.
 - Avoid new form libraries — native inputs match the rest of the extension.

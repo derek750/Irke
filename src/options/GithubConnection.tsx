@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { getConnections, patchConnections } from '@/lib/connections'
 import type { GithubConnection as GithubState } from '@/lib/connections'
-import { listGithubRepos, verifyGithubToken } from '@/lib/connectors/github'
+import { isGithubConfigured, listGithubRepos, signInWithGithub } from '@/lib/connectors/github'
 import type { GithubRepo } from '@/lib/connectors/github'
 import { syncGithub } from '@/lib/connectors/sync'
 import { replaceDocsForSource } from '@/lib/db'
@@ -15,11 +15,11 @@ interface GithubConnectionProps {
 
 export function GithubConnection({ onChanged }: GithubConnectionProps) {
   const [github, setGithub] = useState<GithubState | null>(null)
-  const [tokenDraft, setTokenDraft] = useState('')
   const [repos, setRepos] = useState<GithubRepo[]>([])
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
+  const configured = isGithubConfigured()
 
   useEffect(() => {
     void (async () => {
@@ -52,14 +52,10 @@ export function GithubConnection({ onChanged }: GithubConnectionProps) {
 
   const onConnect = () =>
     run('connect', async () => {
-      const token = tokenDraft.trim()
-      if (!token) throw new Error('Paste a token first.')
-
-      const login = await verifyGithubToken(token)
+      const { token, login } = await signInWithGithub()
       const next: GithubState = { token, login, repos: [], syncedAt: null }
       await patchConnections({ github: next })
       setGithub(next)
-      setTokenDraft('')
       await loadRepos(token)
     })
 
@@ -109,30 +105,20 @@ export function GithubConnection({ onChanged }: GithubConnectionProps) {
         project was, not the source. Good for "tell us about something you built".
       </p>
 
-      {!github.token ? (
-        <>
-          <div>
-            <label htmlFor="gh-token">Personal access token</label>
-            <input
-              id="gh-token"
-              type="password"
-              value={tokenDraft}
-              placeholder="Create a read-only token at github.com/settings/tokens"
-              onChange={(event) => setTokenDraft(event.target.value)}
-            />
-          </div>
-          <div className="row">
-            <button className="primary" onClick={onConnect} disabled={busy !== null}>
-              {busy === 'connect' ? 'Checking…' : 'Connect GitHub'}
-            </button>
-          </div>
-        </>
+      {!configured ? (
+        <div className="notice info">GitHub is not configured for this build.</div>
+      ) : !github.token ? (
+        <div className="row">
+          <button className="primary" onClick={onConnect} disabled={busy !== null}>
+            {busy === 'connect' ? 'Opening GitHub…' : 'Connect GitHub'}
+          </button>
+        </div>
       ) : (
         <>
           <div>
             <label>Repositories ({github.repos.length} selected)</label>
             <div className="scroll-list">
-              {repos.length === 0 && <p className="hint">No repositories found for this token.</p>}
+              {repos.length === 0 && <p className="hint">No repositories found for this account.</p>}
               {repos.map((repo) => (
                 <label key={repo.fullName} className="check-row">
                   <input

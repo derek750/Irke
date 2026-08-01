@@ -46,7 +46,7 @@ Do not reorder this without an explicit product change.
 | Store | API | Contents |
 |-------|-----|----------|
 | `chrome.storage.local` | `lib/settings.ts` | Settings (provider, API key, model, temperature, extra instructions) |
-| `chrome.storage.local` | `lib/connections.ts` | Drive folder + GitHub token / repo selection |
+| `chrome.storage.local` | `lib/connections.ts` | Drive folder + GitHub OAuth session / repo selection |
 | IndexedDB `irke` | `lib/db.ts` | Context docs, chunks, answer-bank entries |
 
 UI pages that touch IndexedDB (options Context / Answers tabs) call `db.ts` directly. Generation and answer-bank lookups run in the service worker so the side panel stays thin. Drive and GitHub syncs run in the options page, not the worker.

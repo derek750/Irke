@@ -8,11 +8,6 @@ const PROVIDER_LABELS: Record<LlmProvider, string> = {
   anthropic: 'Anthropic (Claude)',
 }
 
-const KEY_HELP: Record<LlmProvider, string> = {
-  openai: 'Create a key at platform.openai.com/api-keys',
-  anthropic: 'Create a key at console.anthropic.com/settings/keys',
-}
-
 export function AiTab() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [savedAt, setSavedAt] = useState<number | null>(null)
@@ -79,7 +74,7 @@ export function AiTab() {
             id="api-key"
             type="password"
             value={settings.apiKey}
-            placeholder={KEY_HELP[settings.provider]}
+            placeholder="sk-…"
             onChange={(event) => update({ apiKey: event.target.value })}
           />
         </div>
