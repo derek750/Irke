@@ -107,7 +107,7 @@ export function AiTab() {
 
         <div className="save-bar">
           <button className="primary" onClick={onSave}>
-            Save settings
+            Save
           </button>
           {savedAt && <span className="badge success">Saved</span>}
         </div>

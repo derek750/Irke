@@ -1,6 +1,6 @@
 # Irke
 
-Chrome Manifest V3 extension that reads a job description and the **story questions** on an application — cover letters, "tell us about a time", "why this company" — then drafts answers grounded in the user's own material. Simplify-style in-browser copilot with a personal retrieval index and bring-your-own API key.
+Chrome Manifest V3 extension that reads a job description and the **story questions** on an application — cover letters, "tell us about a time", "why this company" — then drafts answers grounded in the user's own material. Local retrieval index, bring-your-own API key. No Irke backend.
 
 Irke deliberately ignores the specifics: name, email, phone, salary, start date, work authorization, demographics. Those are quick to type and disastrous to guess at. It only handles the questions that ask for a story.
 
@@ -14,7 +14,7 @@ There is **no Irke backend**. Settings and connection state live in `chrome.stor
 | `src/content/` | Content scripts: JD scrape, story-question detection, ATS adapters, fill |
 | `src/lib/` | Shared types, messaging, storage, context index, connectors, prompts, LLM clients |
 | `src/sidepanel/` | Review / generate / fill UI (opened from the toolbar icon) |
-| `src/options/` | Data, connectors, answer bank, and AI provider settings |
+| `src/options/` | Dashboard: data, connectors, answer bank, AI provider |
 | `src/ui/` | Shared dark theme CSS |
 | `scripts/` | Dev smoke tests (retrieval, question detection) |
 | `manifest.config.ts` | CRXJS manifest source of truth |
@@ -29,7 +29,7 @@ Read nested guides before editing each area:
 - `src/lib/context/CLAUDE.md` — chunking, BM25 / hybrid retrieval, Build index
 - `src/lib/connectors/CLAUDE.md` — Drive, GitHub, PDF, sync jobs
 - `src/sidepanel/CLAUDE.md` — panel UI and draft state
-- `src/options/CLAUDE.md` — Data / Connectors / Answer bank / AI settings
+- `src/options/CLAUDE.md` — Dashboard (Data / Connectors / Answer bank / AI)
 - `src/ui/CLAUDE.md` — shared theme tokens
 - `scripts/CLAUDE.md` — smoke tests
 

@@ -43,7 +43,7 @@ export function SidePanel() {
           <h1>Irke</h1>
           <div className="row">
             <button className="ghost" onClick={() => chrome.runtime.openOptionsPage()}>
-              Context
+              Dashboard
             </button>
             <button onClick={runScan} disabled={isScanning}>
               {isScanning ? 'Scanning…' : 'Rescan'}
@@ -64,12 +64,8 @@ export function SidePanel() {
 
         {!scanError && !isScanning && questions.length === 0 && (
           <div className="empty-state">
-            <h2>No story questions here</h2>
-            <p>
-              Irke only handles the open-ended ones — cover letters, "tell us about a time", why this
-              company. Name, email, and the rest are yours. If the form loads after a click, rescan
-              once it is visible.
-            </p>
+            <h2>No story questions</h2>
+            <p>Nothing open-ended detected. Rescan if the form loaded late.</p>
           </div>
         )}
 
@@ -89,8 +85,8 @@ export function SidePanel() {
       </div>
 
       <footer className="panel-footer">
-        <span>{scan ? `${questions.length} story questions` : 'Not scanned'}</span>
-        <span>Irke never submits for you</span>
+        <span>{scan ? `${questions.length} questions` : 'Not scanned'}</span>
+        <span>Never auto-submits</span>
       </footer>
     </div>
   )

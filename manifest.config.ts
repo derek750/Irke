@@ -14,7 +14,7 @@ const googleClientId = loadEnv(process.env.NODE_ENV ?? 'development', process.cw
 
 export default defineManifest({
   manifest_version: 3,
-  name: 'Irke — Job Application Copilot',
+  name: 'Irke',
   short_name: 'Irke',
   version: pkg.version,
   description: pkg.description,

@@ -13,7 +13,7 @@ const OPENAI_COMPAT_URLS: Record<Exclude<LlmProvider, 'anthropic'>, string> = {
 
 export async function complete({ settings, system, user }: CompletionInput): Promise<string> {
   if (!settings.apiKey.trim()) {
-    throw new Error('No API key set. Open Irke options and add your provider key.')
+    throw new Error('No API key set. Open the dashboard and add your provider key.')
   }
 
   const text =

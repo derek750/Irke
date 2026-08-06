@@ -4,7 +4,7 @@ export const FIELD_ID_ATTRIBUTE = 'data-irke-field'
 
 type FormControl = HTMLInputElement | HTMLTextAreaElement
 
-/** Anything a copilot must never touch: bot traps, credentials, uploads, verification. */
+/** Never touch: bot traps, credentials, uploads, verification. */
 const BLOCKED_PATTERN =
   /captcha|recaptcha|hcaptcha|turnstile|honeypot|password|otp|verification|creditcard|card-number|ssn|social-security/i
 

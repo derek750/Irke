@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Chrome extension that drafts the story questions on a job application — cover letters, behavioral prompts, why this company — from your own Drive, GitHub, and written stories.",
+  "description": "Drafts open-ended application answers from your own notes, Drive, and GitHub.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

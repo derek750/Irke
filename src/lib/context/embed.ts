@@ -25,7 +25,7 @@ export function resolveEmbeddingProvider(settings: Settings): EmbeddingProvider 
     !settings.apiKey.trim()
   ) {
     throw new Error(
-      'Building the embedding index needs an OpenAI or OpenRouter API key. Set the AI provider in options (Anthropic has no embeddings API).',
+      'Building the embedding index needs an OpenAI or OpenRouter API key. Set the AI provider in the dashboard (Anthropic has no embeddings API).',
     )
   }
   return settings.provider

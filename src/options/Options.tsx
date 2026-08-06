@@ -19,12 +19,8 @@ export function Options() {
   return (
     <main className="shell">
       <header className="shell-header">
-        <h1>Irke</h1>
-        <p className="hint">
-          Add your material once. Irke drafts the open-ended application questions — cover letters,
-          "tell us about a time", why this company — in your voice, from your own material, and never
-          submits anything for you.
-        </p>
+        <h1>Dashboard</h1>
+        <p className="hint">Wire up context and your API key. UI is rough — functional for now.</p>
       </header>
 
       <nav className="tabs">

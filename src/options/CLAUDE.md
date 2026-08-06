@@ -1,6 +1,6 @@
 # `src/options/`
 
-Options page React UI. Opens on first install and from the side panel **Context** button. This is where the user connects their material and configures the provider — not where generation runs.
+Dashboard UI (Chrome options page). Opens on first install and from the side panel **Dashboard** button. Connect material and configure the provider — generation does not run here.
 
 ## Files
 

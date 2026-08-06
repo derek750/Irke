@@ -51,7 +51,7 @@ See `connectors/CLAUDE.md` for auth, sync contract, and what gets indexed. Short
 
 ## Answer bank fingerprints
 
-`fingerprintQuestion` lowercases, strips `(required)` / `(optional)` / punctuation, collapses whitespace. Exact fingerprint match only — similar-but-different questions are separate entries (same behavior as Simplify).
+`fingerprintQuestion` lowercases, strips `(required)` / `(optional)` / punctuation, collapses whitespace. Exact fingerprint match only — similar-but-different questions are separate entries.
 
 ## Conventions
 
