@@ -1,5 +1,5 @@
 import { lookupAnswer } from '@/lib/answer-bank'
-import { embeddingApiKey, embedTexts } from '@/lib/context/embed'
+import { embeddingApiKey, embedTexts, resolveEmbeddingProvider } from '@/lib/context/embed'
 import { retrieve } from '@/lib/context/retrieve'
 import { listChunks } from '@/lib/db'
 import { complete } from '@/lib/llm'
@@ -38,7 +38,8 @@ export async function generateAnswer({ job, question, regenerate }: GenerateInpu
   const hasEmbeddings = chunks.some((chunk) => chunk.embedding?.length)
   if (hasEmbeddings) {
     try {
-      const [vector] = await embedTexts(embeddingApiKey(settings), [query])
+      const provider = resolveEmbeddingProvider(settings)
+      const [vector] = await embedTexts(embeddingApiKey(settings), [query], provider)
       queryEmbedding = vector
     } catch {
       // Fall back to BM25 when the embed key is missing or the request fails.

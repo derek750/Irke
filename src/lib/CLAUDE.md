@@ -52,7 +52,8 @@ Syncs run from the **options page**, not the service worker, because PDF extract
 
 ## LLM
 
-- Providers: `openai` | `anthropic` (extend `LlmProvider` + `call*` together)
+- Providers: `openai` | `anthropic` | `openrouter` (extend `LlmProvider` + `call*` together)
+- OpenRouter uses the OpenAI-compatible chat completions API at `openrouter.ai`
 - Empty / missing API key → clear user-facing error
 - Anthropic browser calls need `anthropic-dangerous-direct-browser-access: true` (already set)
 - Do not proxy keys through a server

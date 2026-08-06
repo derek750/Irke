@@ -7,8 +7,9 @@ Options page React UI. Opens on first install and from the side panel **Context*
 | File | Responsibility |
 |------|----------------|
 | `index.html` / `main.tsx` | Vite entry |
-| `Options.tsx` | Tab shell: Context / Answer bank / AI provider |
-| `ContextTab.tsx` | Hosts both connections, the story composer, file upload, Build index, and the indexed-doc list |
+| `Options.tsx` | Tab shell: Data / Connectors / Answer bank / AI provider |
+| `DataTab.tsx` | Story composer, file upload, Build index, and the indexed-doc list |
+| `ConnectorsTab.tsx` | Hosts Drive and GitHub connection cards |
 | `DriveConnection.tsx` | Google OAuth, folder picker, sync, disconnect |
 | `DriveFolderPicker.tsx` | Navigable Drive folder browser (browse + search) |
 | `GithubConnection.tsx` | GitHub OAuth sign-in, repo selection, sync, disconnect |
@@ -21,7 +22,8 @@ Options page React UI. Opens on first install and from the side panel **Context*
 
 | Tab | Persistence | Notes |
 |-----|-------------|-------|
-| Context | IndexedDB via `db.ts` + `chunkDoc`; connection state in `chrome.storage.local` | Syncs run here, not in the worker |
+| Data | IndexedDB via `db.ts` + `chunkDoc` | Stories, uploads, indexed list, Build index |
+| Connectors | Connection state in `chrome.storage.local`; sync writes IndexedDB | Syncs run here, not in the worker |
 | Answer bank | IndexedDB | Fingerprints are immutable keys; editing updates answer text only |
 | AI provider | `saveSettings` | Switching provider resets model to `DEFAULT_MODELS[provider]` |
 
@@ -31,14 +33,14 @@ There is no Profile tab. Irke does not answer name / email / salary / work-autho
 
 Four ways in, all landing in the same index via `saveDoc` (`putDoc` + `replaceChunksForDoc`):
 
-1. **Story** — typed into the tab, `source: 'story'`
+1. **Story** — typed on the Data tab, `source: 'story'`
 2. **Upload** — PDF / txt / md through `readUploadedFile`, `source: 'document'`
-3. **Google Drive** — `syncDrive()` over one picked folder, `source: 'drive'`
-4. **GitHub** — `syncGithub()` over the selected repos, `source: 'github'`
+3. **Google Drive** — `syncDrive()` over one picked folder (Connectors tab), `source: 'drive'`
+4. **GitHub** — `syncGithub()` over the selected repos (Connectors tab), `source: 'github'`
 
-Connection syncs go through `replaceDocsForSource`, which clears that source first. Never leave orphan chunks.
+Connection syncs go through `replaceDocsForSource`, which clears that source first. Never leave orphan chunks. Synced docs show up on the Data tab Indexed list.
 
-**Build index** (on the Indexed list) calls `buildContextIndex()` to embed chunks via OpenAI and store vectors on IndexedDB chunks. That is the one intentional LLM-provider call from this page (embeddings only — not chat completions). Requires AI provider set to OpenAI.
+**Build index** (on the Data tab Indexed list) calls `buildContextIndex()` to embed chunks via OpenAI or OpenRouter and store vectors on IndexedDB chunks. That is the one intentional LLM-provider call from this page (embeddings only — not chat completions). Requires AI provider set to OpenAI or OpenRouter.
 
 ## Google Drive / GitHub setup
 

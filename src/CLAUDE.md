@@ -49,7 +49,7 @@ Do not reorder this without an explicit product change.
 | `chrome.storage.local` | `lib/connections.ts` | Drive folder + GitHub OAuth session / repo selection |
 | IndexedDB `irke` | `lib/db.ts` | Context docs, chunks, answer-bank entries |
 
-UI pages that touch IndexedDB (options Context / Answers tabs) call `db.ts` directly. Generation and answer-bank lookups run in the service worker so the side panel stays thin. Drive and GitHub syncs run in the options page, not the worker.
+UI pages that touch IndexedDB (options Data / Answers tabs) call `db.ts` directly. Generation and answer-bank lookups run in the service worker so the side panel stays thin. Drive and GitHub syncs run in the options page, not the worker.
 
 ## Types
 

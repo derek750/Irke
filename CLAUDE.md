@@ -14,7 +14,7 @@ There is **no Irke backend**. Settings and connection state live in `chrome.stor
 | `src/content/` | Content scripts: JD scrape, story-question detection, ATS adapters, fill |
 | `src/lib/` | Shared types, messaging, storage, context index, connectors, prompts, LLM clients |
 | `src/sidepanel/` | Review / generate / fill UI (opened from the toolbar icon) |
-| `src/options/` | Context connections, answer bank, and AI provider settings |
+| `src/options/` | Data, connectors, answer bank, and AI provider settings |
 | `src/ui/` | Shared dark theme CSS |
 | `scripts/` | Dev smoke tests (retrieval, question detection) |
 | `manifest.config.ts` | CRXJS manifest source of truth |

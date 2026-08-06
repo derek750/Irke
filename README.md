@@ -34,13 +34,14 @@ required fact is missing, the draft contains `[NEED INPUT]` and the side panel f
 
 ## Where context comes from
 
-The **Context** tab in settings feeds one local index from four places:
+Settings splits this into **Data** (stories, uploads, indexed list) and **Connectors**
+(Drive / GitHub). Both feed one local index:
 
 | Source | What Irke reads |
 | --- | --- |
 | **Google Drive** | One folder you pick, read-only. Google Docs, PDFs, and text files. |
 | **GitHub** | Description, topics, and README of the repos you select. Never your source code. |
-| **Your stories** | Written straight into the tab. The things no document captures. |
+| **Your stories** | Written on the Data tab. The things no document captures. |
 | **File upload** | A PDF, `.txt`, or `.md` — text is extracted locally. |
 
 Stories you write yourself are weighted highest during retrieval, since they were written
@@ -116,7 +117,7 @@ wins, with job context borrowed from the top frame when the form frame has none.
 | `src/background/` | Service worker: orchestrates answer sources, multi-frame scanning |
 | `src/content/` | JD scraping, story-question detection, ATS adapters, controlled-input filling |
 | `src/sidepanel/` | Review and fill UI |
-| `src/options/` | Context connections, answer bank, and provider settings |
+| `src/options/` | Data, connectors, answer bank, and provider settings |
 | `src/lib/context/` | Chunking and BM25 retrieval |
 | `src/lib/connectors/` | Google Drive, GitHub, PDF extraction, sync jobs |
 | `src/lib/` | Types, messaging, storage, prompt construction, LLM clients |

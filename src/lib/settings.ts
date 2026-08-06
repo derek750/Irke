@@ -5,6 +5,7 @@ const SETTINGS_KEY = 'irke:settings'
 export const DEFAULT_MODELS: Record<LlmProvider, string> = {
   openai: 'gpt-4o-mini',
   anthropic: 'claude-3-5-haiku-latest',
+  openrouter: 'openai/gpt-4o-mini',
 }
 
 export const DEFAULT_SETTINGS: Settings = {

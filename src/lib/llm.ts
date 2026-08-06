@@ -1,9 +1,14 @@
-import type { Settings } from './types'
+import type { LlmProvider, Settings } from './types'
 
 interface CompletionInput {
   settings: Settings
   system: string
   user: string
+}
+
+const OPENAI_COMPAT_URLS: Record<Exclude<LlmProvider, 'anthropic'>, string> = {
+  openai: 'https://api.openai.com/v1/chat/completions',
+  openrouter: 'https://openrouter.ai/api/v1/chat/completions',
 }
 
 export async function complete({ settings, system, user }: CompletionInput): Promise<string> {
@@ -14,20 +19,28 @@ export async function complete({ settings, system, user }: CompletionInput): Pro
   const text =
     settings.provider === 'anthropic'
       ? await callAnthropic({ settings, system, user })
-      : await callOpenai({ settings, system, user })
+      : await callOpenaiCompat({ settings, system, user })
 
   const trimmed = text.trim()
   if (!trimmed) throw new Error('The model returned an empty answer. Try regenerating.')
   return trimmed
 }
 
-async function callOpenai({ settings, system, user }: CompletionInput): Promise<string> {
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+async function callOpenaiCompat({ settings, system, user }: CompletionInput): Promise<string> {
+  const provider = settings.provider === 'openrouter' ? 'openrouter' : 'openai'
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${settings.apiKey}`,
+  }
+  // Optional OpenRouter ranking headers; ignored by OpenAI.
+  if (provider === 'openrouter') {
+    headers['HTTP-Referer'] = 'https://github.com/derek750/Irke'
+    headers['X-Title'] = 'Irke'
+  }
+
+  const response = await fetch(OPENAI_COMPAT_URLS[provider], {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${settings.apiKey}`,
-    },
+    headers,
     body: JSON.stringify({
       model: settings.model,
       temperature: settings.temperature,
@@ -38,7 +51,8 @@ async function callOpenai({ settings, system, user }: CompletionInput): Promise<
     }),
   })
 
-  const payload = await readJson(response, 'OpenAI')
+  const label = provider === 'openrouter' ? 'OpenRouter' : 'OpenAI'
+  const payload = await readJson(response, label)
   const content = payload?.choices?.[0]?.message?.content
   return typeof content === 'string' ? content : ''
 }

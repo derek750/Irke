@@ -1,4 +1,4 @@
-export type LlmProvider = 'openai' | 'anthropic'
+export type LlmProvider = 'openai' | 'anthropic' | 'openrouter'
 
 export interface Settings {
   provider: LlmProvider

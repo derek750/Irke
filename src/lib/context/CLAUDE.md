@@ -9,30 +9,30 @@ Local retrieval over the user's own material. Keyword BM25 always; optional Open
 | `tokenize.ts` | Lowercase tokenize + stop-word filter; `termFrequencies` for ingest |
 | `chunk.ts` | Split docs into passages; prefix with source tags (`[MY STORY]`, etc.); build `ContextChunk`s |
 | `retrieve.ts` | BM25 (+ cosine via RRF when embeddings exist); returns `RetrievedChunk[]` |
-| `embed.ts` | BYOK OpenAI `text-embedding-3-small`; `embeddingApiKey` guard |
+| `embed.ts` | BYOK OpenAI / OpenRouter `text-embedding-3-small`; `embeddingApiKey` guard |
 | `build-index.ts` | Embed missing chunk vectors and write them back to IndexedDB |
 
 ## Ingest path
 
-Options UI (`ContextTab` / connections) → `saveDoc` in `lib/db.ts` → `putDoc` + `chunkDoc` → `replaceChunksForDoc`. Replacing a doc always deletes old chunks for that `docId` first (embeddings for that doc are dropped with them).
+Options UI (`DataTab` / `ConnectorsTab`) → `saveDoc` in `lib/db.ts` → `putDoc` + `chunkDoc` → `replaceChunksForDoc`. Replacing a doc always deletes old chunks for that `docId` first (embeddings for that doc are dropped with them).
 
 Chunking packs paragraphs toward ~900 chars (hard wrap ~1400) so one story tends to stay in one chunk. Sync/upload only stores text + BM25 tokens.
 
 ## Embedding index
 
-**Build index** on the Context tab calls `buildContextIndex()`:
+**Build index** on the Data tab calls `buildContextIndex()`:
 
-1. Resolve an OpenAI API key (`provider === 'openai'`)
+1. Resolve an OpenAI or OpenRouter API key (`provider === 'openai' | 'openrouter'`)
 2. Embed chunks missing `embedding` (or all, if `rebuild: true`)
 3. `putChunks` with `embedding` + `embeddedAt`
 
-Anthropic has no embeddings API — Build index requires the AI provider set to OpenAI. Generation falls back to BM25-only if the query embed fails.
+Anthropic has no embeddings API — Build index requires the AI provider set to OpenAI or OpenRouter. Generation falls back to BM25-only if the query embed fails.
 
 ## Source tags and boosts
 
 | Source | Tag | Boost | Comes from |
 |--------|-----|-------|------------|
-| `story` | `[MY STORY]` | 1.30 | Typed into the Context tab |
+| `story` | `[MY STORY]` | 1.30 | Typed into the Data tab |
 | `document` | `[MY DOCUMENT]` | 1.15 | Uploaded PDF / txt / md |
 | `drive` | `[GOOGLE DRIVE]` | 1.10 | Synced Drive folder |
 | `github` | `[GITHUB]` | 1.00 | Synced repo description + README |

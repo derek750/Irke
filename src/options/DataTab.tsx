@@ -6,10 +6,8 @@ import { SOURCE_LABELS } from '@/lib/context/chunk'
 import { deleteDocAndChunks, listChunks, listDocs, saveDoc } from '@/lib/db'
 import { errorMessage } from '@/lib/messages'
 import type { ContextDoc } from '@/lib/types'
-import { DriveConnection } from './DriveConnection'
-import { GithubConnection } from './GithubConnection'
 
-export function ContextTab() {
+export function DataTab() {
   const [docs, setDocs] = useState<ContextDoc[]>([])
   const [embeddedCount, setEmbeddedCount] = useState(0)
   const [chunkCount, setChunkCount] = useState(0)
@@ -119,15 +117,12 @@ export function ContextTab() {
   return (
     <section className="section">
       <div>
-        <h3>Context</h3>
+        <h3>Data</h3>
         <p className="hint">
-          The material Irke draws your answers from. Everything stays in this browser — connections
-          are read-only and nothing is uploaded anywhere but your AI provider at draft time.
+          The material Irke draws your answers from. Everything stays in this browser — nothing is
+          uploaded anywhere but your AI provider at draft time.
         </p>
       </div>
-
-      <DriveConnection onChanged={refresh} />
-      <GithubConnection onChanged={refresh} />
 
       <div className="card stack">
         <div className="row space-between">
@@ -174,7 +169,6 @@ export function ContextTab() {
             onChange={(event) => void onUpload(event.target.files)}
           />
         </div>
-
       </div>
 
       <div className="doc-list">
@@ -185,7 +179,7 @@ export function ContextTab() {
           </button>
         </div>
         <p className="hint">
-          Embeddings power semantic retrieval alongside keywords. Needs an OpenAI API key
+          Embeddings power semantic retrieval alongside keywords. Needs an OpenAI or OpenRouter API key
           {chunkCount > 0
             ? ` — ${embeddedCount}/${chunkCount} chunks embedded.`
             : '.'}
@@ -193,7 +187,9 @@ export function ContextTab() {
         {error && <div className="notice error">{error}</div>}
         {indexNotice && <div className="notice">{indexNotice}</div>}
         {docs.length === 0 && (
-          <p className="hint">Nothing indexed yet. Connect a folder, or write one story to start.</p>
+          <p className="hint">
+            Nothing indexed yet. Write a story, upload a file, or sync a connector to start.
+          </p>
         )}
         {docs.map((doc) => (
           <div key={doc.id} className="doc-item">
