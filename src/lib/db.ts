@@ -1,11 +1,16 @@
-import type { AnswerBankEntry, BrainChunk, BrainDoc } from './types'
+import { chunkDoc } from './context/chunk'
+import type { AnswerBankEntry, ContextChunk, ContextDoc, ContextSource } from './types'
 
 const DB_NAME = 'irke'
-const DB_VERSION = 1
+/** v3: chunks may carry optional `embedding` / `embeddedAt` (no new stores). */
+const DB_VERSION = 3
 
-export const STORE_DOCS = 'brain_docs'
-export const STORE_CHUNKS = 'brain_chunks'
+export const STORE_DOCS = 'context_docs'
+export const STORE_CHUNKS = 'context_chunks'
 export const STORE_ANSWERS = 'answer_bank'
+
+/** v1 stores, kept only so an upgrade can drop them. Their records used the old profile-era shape. */
+const LEGACY_STORES = ['brain_docs', 'brain_chunks']
 
 type StoreName = typeof STORE_DOCS | typeof STORE_CHUNKS | typeof STORE_ANSWERS
 
@@ -19,7 +24,15 @@ function openDb(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = () => {
       const db = request.result
-      if (!db.objectStoreNames.contains(STORE_DOCS)) db.createObjectStore(STORE_DOCS, { keyPath: 'id' })
+
+      for (const legacy of LEGACY_STORES) {
+        if (db.objectStoreNames.contains(legacy)) db.deleteObjectStore(legacy)
+      }
+
+      if (!db.objectStoreNames.contains(STORE_DOCS)) {
+        const docs = db.createObjectStore(STORE_DOCS, { keyPath: 'id' })
+        docs.createIndex('source', 'source')
+      }
       if (!db.objectStoreNames.contains(STORE_CHUNKS)) {
         const chunks = db.createObjectStore(STORE_CHUNKS, { keyPath: 'id' })
         chunks.createIndex('docId', 'docId')
@@ -60,13 +73,13 @@ async function withStore<T>(
   return result
 }
 
-export async function putDoc(doc: BrainDoc): Promise<void> {
+export async function putDoc(doc: ContextDoc): Promise<void> {
   await withStore(STORE_DOCS, 'readwrite', (store) => promisify(store.put(doc)))
 }
 
-export async function listDocs(): Promise<BrainDoc[]> {
+export async function listDocs(): Promise<ContextDoc[]> {
   const docs = await withStore(STORE_DOCS, 'readonly', (store) =>
-    promisify(store.getAll() as IDBRequest<BrainDoc[]>),
+    promisify(store.getAll() as IDBRequest<ContextDoc[]>),
   )
   return docs.sort((a, b) => b.createdAt - a.createdAt)
 }
@@ -79,7 +92,7 @@ export async function deleteDocAndChunks(docId: string): Promise<void> {
   })
 }
 
-export async function replaceChunksForDoc(docId: string, chunks: BrainChunk[]): Promise<void> {
+export async function replaceChunksForDoc(docId: string, chunks: ContextChunk[]): Promise<void> {
   await withStore(STORE_CHUNKS, 'readwrite', async (store) => {
     const keys = await promisify(store.index('docId').getAllKeys(docId))
     await Promise.all(keys.map((key) => promisify(store.delete(key as IDBValidKey))))
@@ -87,10 +100,35 @@ export async function replaceChunksForDoc(docId: string, chunks: BrainChunk[]): 
   })
 }
 
-export async function listChunks(): Promise<BrainChunk[]> {
-  return withStore(STORE_CHUNKS, 'readonly', (store) =>
-    promisify(store.getAll() as IDBRequest<BrainChunk[]>),
+export async function saveDoc(doc: ContextDoc): Promise<void> {
+  await putDoc(doc)
+  await replaceChunksForDoc(doc.id, chunkDoc(doc))
+}
+
+/**
+ * A sync is authoritative for its source: files removed from the Drive folder or repos the user
+ * unchecked disappear here too, so the index never drifts from what the connection actually covers.
+ */
+export async function replaceDocsForSource(source: ContextSource, docs: ContextDoc[]): Promise<void> {
+  const existing = await withStore(STORE_DOCS, 'readonly', (store) =>
+    promisify(store.index('source').getAllKeys(source)),
   )
+  for (const key of existing) await deleteDocAndChunks(key as string)
+  for (const doc of docs) await saveDoc(doc)
+}
+
+export async function listChunks(): Promise<ContextChunk[]> {
+  return withStore(STORE_CHUNKS, 'readonly', (store) =>
+    promisify(store.getAll() as IDBRequest<ContextChunk[]>),
+  )
+}
+
+/** Upsert chunks in place (used after embedding so we do not re-chunk). */
+export async function putChunks(chunks: ContextChunk[]): Promise<void> {
+  if (!chunks.length) return
+  await withStore(STORE_CHUNKS, 'readwrite', async (store) => {
+    await Promise.all(chunks.map((chunk) => promisify(store.put(chunk))))
+  })
 }
 
 export async function findAnswer(fingerprint: string): Promise<AnswerBankEntry | null> {

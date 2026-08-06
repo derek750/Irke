@@ -6,11 +6,7 @@ import type { LlmProvider, Settings } from '@/lib/types'
 const PROVIDER_LABELS: Record<LlmProvider, string> = {
   openai: 'OpenAI',
   anthropic: 'Anthropic (Claude)',
-}
-
-const KEY_HELP: Record<LlmProvider, string> = {
-  openai: 'Create a key at platform.openai.com/api-keys',
-  anthropic: 'Create a key at console.anthropic.com/settings/keys',
+  openrouter: 'OpenRouter',
 }
 
 export function AiTab() {
@@ -79,7 +75,7 @@ export function AiTab() {
             id="api-key"
             type="password"
             value={settings.apiKey}
-            placeholder={KEY_HELP[settings.provider]}
+            placeholder={settings.provider === 'openrouter' ? 'sk-or-…' : 'sk-…'}
             onChange={(event) => update({ apiKey: event.target.value })}
           />
         </div>

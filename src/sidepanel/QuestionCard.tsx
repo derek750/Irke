@@ -1,11 +1,19 @@
-import type { DetectedQuestion } from '@/lib/types'
-import { KIND_LABELS } from '@/lib/brain/chunk'
+import type { DetectedQuestion, StoryTopic } from '@/lib/types'
 import type { DraftState } from './useDrafts'
 
-const SOURCE_LABELS: Record<NonNullable<DraftState['source']>, string> = {
+const DRAFT_SOURCE_LABELS: Record<NonNullable<DraftState['source']>, string> = {
   answer_bank: 'Reused saved answer',
-  profile: 'From profile',
   llm: 'AI draft',
+}
+
+const TOPIC_LABELS: Record<StoryTopic, string> = {
+  cover_letter: 'Cover letter',
+  why_company: 'Why this company',
+  why_role: 'Why this role',
+  behavioral: 'Behavioral',
+  strengths: 'Strengths',
+  project: 'Project',
+  open_ended: 'Open ended',
 }
 
 interface QuestionCardProps {
@@ -42,31 +50,26 @@ export function QuestionCard({
       </button>
 
       <div className="question-tags">
-        <span className="badge">{question.inputKind}</span>
+        <span className="badge">{TOPIC_LABELS[question.topic]}</span>
         {question.required && <span className="badge warning">Required</span>}
-        {question.profileKey && <span className="badge accent">Profile match</span>}
         {question.maxLength && <span className="badge">{question.maxLength} char max</span>}
-        {draft?.source && <span className="badge accent">{SOURCE_LABELS[draft.source]}</span>}
+        {draft?.source && <span className="badge accent">{DRAFT_SOURCE_LABELS[draft.source]}</span>}
         {draft?.needsInput && <span className="badge warning">Needs your input</span>}
       </div>
 
       {expanded && (
         <div className="question-body">
-          {question.options.length > 0 && (
-            <p className="sources">Options: {question.options.join(' · ')}</p>
-          )}
-
           <textarea
             value={value}
             placeholder={isBusy ? 'Drafting…' : 'Generate a draft, or write your answer here.'}
             onChange={(event) => onChange(event.target.value)}
-            rows={question.inputKind === 'textarea' ? 7 : 2}
+            rows={question.topic === 'cover_letter' ? 12 : 7}
           />
 
           {draft?.error && <div className="notice error">{draft.error}</div>}
 
           {draft?.sources?.length ? (
-            <p className="sources">Grounded in: {draft.sources.map(labelForSource).join(', ')}</p>
+            <p className="sources">Grounded in: {draft.sources.join(', ')}</p>
           ) : null}
 
           <div className="question-actions">
@@ -84,9 +87,4 @@ export function QuestionCard({
       )}
     </article>
   )
-}
-
-function labelForSource(source: string): string {
-  const known = Object.entries(KIND_LABELS).find(([kind]) => source === kind)
-  return known ? known[1] : source
 }

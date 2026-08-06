@@ -1,9 +1,10 @@
 import { lookupAnswer } from '@/lib/answer-bank'
-import { retrieve } from '@/lib/brain/retrieve'
+import { embeddingApiKey, embedTexts, resolveEmbeddingProvider } from '@/lib/context/embed'
+import { retrieve } from '@/lib/context/retrieve'
 import { listChunks } from '@/lib/db'
 import { complete } from '@/lib/llm'
 import { NEEDS_INPUT_MARKER, buildSystemPrompt, buildUserPrompt } from '@/lib/prompt'
-import { getProfile, getSettings } from '@/lib/settings'
+import { getSettings } from '@/lib/settings'
 import type { DetectedQuestion, GeneratedAnswer, JobContext } from '@/lib/types'
 
 interface GenerateInput {
@@ -15,15 +16,6 @@ interface GenerateInput {
 const JD_QUERY_CHARS = 1200
 
 export async function generateAnswer({ job, question, regenerate }: GenerateInput): Promise<GeneratedAnswer> {
-  const profile = await getProfile()
-
-  if (question.profileKey) {
-    const value = profile[question.profileKey].trim()
-    if (value) {
-      return { fieldId: question.fieldId, answer: value, source: 'profile', sources: ['Profile'], needsInput: false }
-    }
-  }
-
   if (!regenerate) {
     const remembered = await lookupAnswer(question.label)
     if (remembered) {
@@ -39,14 +31,28 @@ export async function generateAnswer({ job, question, regenerate }: GenerateInpu
 
   const settings = await getSettings()
   const chunks = await listChunks()
-  // The JD adds vocabulary the question alone lacks, which is what surfaces the right resume lines.
+  // The JD adds vocabulary the question alone lacks, which is what surfaces the right stories.
   const query = `${question.label}\n${job.title}\n${job.descriptionText.slice(0, JD_QUERY_CHARS)}`
-  const retrieved = retrieve(query, chunks)
+
+  let queryEmbedding: number[] | undefined
+  const hasEmbeddings = chunks.some((chunk) => chunk.embedding?.length)
+  if (hasEmbeddings) {
+    try {
+      const provider = resolveEmbeddingProvider(settings)
+      const [vector] = await embedTexts(embeddingApiKey(settings), [query], provider)
+      queryEmbedding = vector
+    } catch {
+      // Fall back to BM25 when the embed key is missing or the request fails.
+      queryEmbedding = undefined
+    }
+  }
+
+  const retrieved = retrieve(query, chunks, { queryEmbedding })
 
   const answer = await complete({
     settings,
     system: buildSystemPrompt(settings.extraInstructions),
-    user: buildUserPrompt({ job, question, profile, retrieved }),
+    user: buildUserPrompt({ job, question, retrieved }),
   })
 
   return {

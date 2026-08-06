@@ -1,4 +1,4 @@
-export type LlmProvider = 'openai' | 'anthropic'
+export type LlmProvider = 'openai' | 'anthropic' | 'openrouter'
 
 export interface Settings {
   provider: LlmProvider
@@ -8,45 +8,35 @@ export interface Settings {
   extraInstructions: string
 }
 
-export interface Profile {
-  fullName: string
-  email: string
-  phone: string
-  location: string
-  linkedinUrl: string
-  githubUrl: string
-  portfolioUrl: string
-  workAuthorization: string
-  needsSponsorship: string
-  salaryExpectation: string
-  noticePeriod: string
-  earliestStartDate: string
-  pronouns: string
-}
+/** Where a context document came from. Doubles as the tag prefixed onto every chunk. */
+export type ContextSource = 'story' | 'document' | 'drive' | 'github'
 
-/** Category tag prefixed onto every chunk so the model knows what it is reading. */
-export type BrainDocKind = 'resume' | 'app_answer' | 'about_me' | 'project' | 'writing'
-
-export interface BrainDoc {
+export interface ContextDoc {
   id: string
-  kind: BrainDocKind
+  source: ContextSource
   title: string
   text: string
   createdAt: number
+  /** Drive file id or `owner/repo`, so a resync updates in place instead of duplicating. */
+  externalId?: string
+  url?: string
 }
 
-export interface BrainChunk {
+export interface ContextChunk {
   id: string
   docId: string
   docTitle: string
-  kind: BrainDocKind
+  source: ContextSource
   text: string
   /** Lowercased token counts, precomputed at ingest so retrieval stays cheap. */
   tokens: Record<string, number>
+  /** OpenAI embedding vector; filled by Build index. Absent until then — BM25 still works. */
+  embedding?: number[]
+  embeddedAt?: number
 }
 
 export interface RetrievedChunk {
-  chunk: BrainChunk
+  chunk: ContextChunk
   score: number
 }
 
@@ -61,19 +51,27 @@ export interface AnswerBankEntry {
   useCount: number
 }
 
-export type QuestionInputKind = 'text' | 'textarea' | 'select' | 'radio' | 'checkbox'
+/**
+ * The kind of story a question is fishing for. Drives the guidance handed to the model,
+ * and is the reason a field was kept at all — Irke ignores everything that is not one of these.
+ */
+export type StoryTopic =
+  | 'cover_letter'
+  | 'why_company'
+  | 'why_role'
+  | 'behavioral'
+  | 'strengths'
+  | 'project'
+  | 'open_ended'
 
 export interface DetectedQuestion {
   /** Stable within a page session; used to target the field when filling. */
   fieldId: string
   label: string
-  inputKind: QuestionInputKind
   required: boolean
   maxLength: number | null
-  options: string[]
   currentValue: string
-  /** Profile key this field maps to, when the local matcher recognizes it. */
-  profileKey: keyof Profile | null
+  topic: StoryTopic
 }
 
 export interface JobContext {
@@ -95,7 +93,7 @@ export interface PageScan {
 export interface GeneratedAnswer {
   fieldId: string
   answer: string
-  source: 'answer_bank' | 'profile' | 'llm'
+  source: 'answer_bank' | 'llm'
   sources: string[]
   needsInput: boolean
 }

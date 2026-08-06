@@ -7,7 +7,7 @@ Manifest V3 service worker. Owns multi-frame scanning, answer generation, fill r
 | File | Responsibility |
 |------|----------------|
 | `index.ts` | Message router, install hook (open options + side-panel-on-action), `scanTab`, `activeTabId` |
-| `generate.ts` | Profile → answer bank → retrieve → LLM pipeline; returns `GeneratedAnswer` |
+| `generate.ts` | Answer bank → retrieve → LLM pipeline; returns `GeneratedAnswer` |
 
 ## Flows
 
@@ -21,7 +21,9 @@ Manifest V3 service worker. Owns multi-frame scanning, answer generation, fill r
 
 ### Generate (`bg:generate`)
 
-Delegates to `generateAnswer` in `generate.ts`. See `src/CLAUDE.md` for source priority. Retrieval query is `question + title + JD prefix` so resume lines match role vocabulary.
+Delegates to `generateAnswer` in `generate.ts`. See `src/CLAUDE.md` for source priority. Retrieval query is `question + title + JD prefix` so the user's stories match role vocabulary.
+
+Context syncing does **not** happen here. Drive and GitHub sync from the options page, where a DOM is available for PDF parsing and the worker cannot be evicted mid-run.
 
 ### Fill (`bg:fill`)
 
@@ -34,13 +36,13 @@ Calls `rememberAnswer` in `lib/answer-bank.ts` (fingerprint + upsert).
 ## Invariants
 
 - Message handlers must `return true` and resolve via `sendResponse` asynchronously (already the pattern in `index.ts`).
-- On install (`reason === 'install'`), open the options page so the user can add a key and brain before scanning.
+- On install (`reason === 'install'`), open the options page so the user can add a key and connect context before scanning.
 - Do not import React or DOM APIs here.
 - Catch and surface errors as `{ ok: false, error }` — never throw across the message channel.
 
 ## Changing generation
 
 1. Prompt / constraints → `lib/prompt.ts`
-2. Retrieval → `lib/brain/retrieve.ts`
+2. Retrieval → `lib/context/retrieve.ts` (hybrid BM25 + embeddings when chunks are embedded)
 3. Provider HTTP → `lib/llm.ts`
 4. Source-priority logic → `generate.ts` only

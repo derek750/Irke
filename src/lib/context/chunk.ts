@@ -1,28 +1,26 @@
-import type { BrainChunk, BrainDoc, BrainDocKind } from '../types'
+import type { ContextChunk, ContextDoc, ContextSource } from '../types'
 import { termFrequencies } from './tokenize'
 
 const TARGET_CHUNK_CHARS = 900
 const MAX_CHUNK_CHARS = 1400
 
-export const KIND_TAGS: Record<BrainDocKind, string> = {
-  resume: '[RESUME]',
-  app_answer: '[PAST APPLICATION ANSWER]',
-  about_me: '[ABOUT ME]',
-  project: '[PROJECT]',
-  writing: '[MY WRITING]',
+export const SOURCE_TAGS: Record<ContextSource, string> = {
+  story: '[MY STORY]',
+  document: '[MY DOCUMENT]',
+  drive: '[GOOGLE DRIVE]',
+  github: '[GITHUB]',
 }
 
-export const KIND_LABELS: Record<BrainDocKind, string> = {
-  resume: 'Resume',
-  app_answer: 'Past application answer',
-  about_me: 'About me',
-  project: 'Project write-up',
-  writing: 'Writing sample',
+export const SOURCE_LABELS: Record<ContextSource, string> = {
+  story: 'Story',
+  document: 'Document',
+  drive: 'Google Drive',
+  github: 'GitHub',
 }
 
 /**
  * Splits on blank lines, then packs paragraphs up to a target size so a chunk keeps
- * a full thought (one job, one answer) rather than an arbitrary character window.
+ * a full thought (one story, one project) rather than an arbitrary character window.
  */
 export function splitIntoPassages(text: string): string[] {
   const paragraphs = text
@@ -75,14 +73,14 @@ function hardWrap(paragraph: string): string[] {
   return parts
 }
 
-export function chunkDoc(doc: BrainDoc): BrainChunk[] {
+export function chunkDoc(doc: ContextDoc): ContextChunk[] {
   return splitIntoPassages(doc.text).map((passage, index) => {
-    const text = `${KIND_TAGS[doc.kind]} ${doc.title}\n${passage}`
+    const text = `${SOURCE_TAGS[doc.source]} ${doc.title}\n${passage}`
     return {
       id: `${doc.id}:${index}`,
       docId: doc.id,
       docTitle: doc.title,
-      kind: doc.kind,
+      source: doc.source,
       text,
       tokens: termFrequencies(text),
     }
