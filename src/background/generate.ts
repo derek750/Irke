@@ -11,11 +11,18 @@ interface GenerateInput {
   job: JobContext
   question: DetectedQuestion
   regenerate: boolean
+  /** When set, overrides Settings.extraInstructions for this call only. */
+  extraInstructions?: string
 }
 
 const JD_QUERY_CHARS = 1200
 
-export async function generateAnswer({ job, question, regenerate }: GenerateInput): Promise<GeneratedAnswer> {
+export async function generateAnswer({
+  job,
+  question,
+  regenerate,
+  extraInstructions,
+}: GenerateInput): Promise<GeneratedAnswer> {
   if (!regenerate) {
     const remembered = await lookupAnswer(question.label)
     if (remembered) {
@@ -48,10 +55,11 @@ export async function generateAnswer({ job, question, regenerate }: GenerateInpu
   }
 
   const retrieved = retrieve(query, chunks, { queryEmbedding })
+  const instructions = extraInstructions ?? settings.extraInstructions
 
   const answer = await complete({
     settings,
-    system: buildSystemPrompt(settings.extraInstructions),
+    system: buildSystemPrompt(instructions),
     user: buildUserPrompt({ job, question, retrieved }),
   })
 

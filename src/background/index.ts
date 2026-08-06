@@ -29,6 +29,7 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
         job: request.job,
         question: request.question,
         regenerate: request.regenerate,
+        extraInstructions: request.extraInstructions,
       })
       return { ok: true, type: 'generate', result }
     }

@@ -103,6 +103,9 @@ export function AiTab() {
             placeholder="e.g. Keep it direct and plain. No corporate buzzwords. Never mention salary."
             onChange={(event) => update({ extraInstructions: event.target.value })}
           />
+          <p className="hint">
+            Also editable on the Generate tab when you want to try a draft with different steering.
+          </p>
         </div>
 
         <div className="save-bar">
