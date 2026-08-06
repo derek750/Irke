@@ -45,7 +45,7 @@ Do not reorder this without an explicit product change.
 
 | Store | API | Contents |
 |-------|-----|----------|
-| `chrome.storage.local` | `lib/settings.ts` | Settings (provider, API key, model, temperature, extra instructions) |
+| `chrome.storage.local` | `lib/settings.ts` | Settings (provider, API key, model, temperature, generation mode, extra instructions) |
 | `chrome.storage.local` | `lib/connections.ts` | Drive folder + GitHub OAuth session / repo selection |
 | IndexedDB `irke` | `lib/db.ts` | Context docs, chunks, answer-bank entries |
 

@@ -1,11 +1,15 @@
 export type LlmProvider = 'openai' | 'anthropic' | 'openrouter'
 
+/** Fast = draft only; polished = draft + revise pass (default). */
+export type GenerationMode = 'fast' | 'polished'
+
 export interface Settings {
   provider: LlmProvider
   apiKey: string
   model: string
   temperature: number
   extraInstructions: string
+  generationMode: GenerationMode
 }
 
 /** Where a context document came from. Doubles as the tag prefixed onto every chunk. */

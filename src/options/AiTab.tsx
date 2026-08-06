@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
 
 import { DEFAULT_MODELS, getSettings, saveSettings } from '@/lib/settings'
-import type { LlmProvider, Settings } from '@/lib/types'
+import type { GenerationMode, LlmProvider, Settings } from '@/lib/types'
 
 const PROVIDER_LABELS: Record<LlmProvider, string> = {
   openai: 'OpenAI',
   anthropic: 'Anthropic (Claude)',
   openrouter: 'OpenRouter',
+}
+
+const MODE_LABELS: Record<GenerationMode, string> = {
+  polished: 'Polished (draft + revise)',
+  fast: 'Fast (draft only)',
 }
 
 export function AiTab() {
@@ -92,6 +97,25 @@ export function AiTab() {
             onChange={(event) => update({ temperature: Number(event.target.value) })}
           />
           <p className="hint">Lower stays close to your documents. Higher varies the wording.</p>
+        </div>
+
+        <div>
+          <label htmlFor="generation-mode">Generation mode</label>
+          <select
+            id="generation-mode"
+            value={settings.generationMode}
+            onChange={(event) => update({ generationMode: event.target.value as GenerationMode })}
+          >
+            {(Object.keys(MODE_LABELS) as GenerationMode[]).map((mode) => (
+              <option key={mode} value={mode}>
+                {MODE_LABELS[mode]}
+              </option>
+            ))}
+          </select>
+          <p className="hint">
+            Polished runs a second editor pass that strips AI tells. Fast skips it — roughly half the
+            wait and cost when you are iterating.
+          </p>
         </div>
 
         <div>

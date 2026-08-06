@@ -70,6 +70,17 @@ export async function generateAnswer({
     user: buildUserPrompt({ job, question, retrieved }),
   })
 
+  // Fast mode skips the editor pass — half the latency/cost when iterating.
+  if (settings.generationMode === 'fast') {
+    return {
+      fieldId: question.fieldId,
+      answer: draft,
+      source: 'llm',
+      sources: [...new Set(retrieved.map((entry) => entry.chunk.docTitle))],
+      needsInput: draft.includes(NEEDS_INPUT_MARKER),
+    }
+  }
+
   // Pass 2: editor audits the draft against the AI-tell checklist and the
   // excerpts (copied phrasing, ungrounded claims) and rewrites it.
   let answer = draft

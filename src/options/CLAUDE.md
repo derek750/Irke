@@ -16,7 +16,7 @@ Dashboard UI (Chrome options page). Opens on first install and from the side pan
 | `SyncStatus.tsx` | Last-synced line + "indexed N, skipped M" summary |
 | `AnswersTab.tsx` | Edit / delete saved answer-bank entries |
 | `GenerateTab.tsx` | Dry-run generation: question context, instructions, draft preview |
-| `AiTab.tsx` | Provider, model, API key, temperature, extra instructions |
+| `AiTab.tsx` | Provider, model, API key, temperature, generation mode, extra instructions |
 | `options.css` | Layout |
 
 ## Tabs
@@ -27,7 +27,7 @@ Dashboard UI (Chrome options page). Opens on first install and from the side pan
 | Connectors | Connection state in `chrome.storage.local`; sync writes IndexedDB | Syncs run here, not in the worker |
 | Answer bank | IndexedDB | Fingerprints are immutable keys; editing updates answer text only |
 | Generate | Calls `bg:generate` (always `regenerate: true`) | Question + optional JD/role; instructions override for the call; Save as default writes `extraInstructions` |
-| AI provider | `saveSettings` | Switching provider resets model to `DEFAULT_MODELS[provider]` |
+| AI provider | `saveSettings` | Switching provider resets model to `DEFAULT_MODELS[provider]`; generation mode is `polished` (draft + revise) or `fast` (draft only) |
 
 There is no Profile tab. Irke does not answer name / email / salary / work-authorization questions, so it has nothing to store for them.
 

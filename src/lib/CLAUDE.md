@@ -8,7 +8,7 @@ Shared domain logic used by background, content (types/messages only), side pane
 |------|------|
 | `types.ts` | Canonical domain types |
 | `messages.ts` | Typed message unions + `sendToBackground` / `sendToTab` |
-| `settings.ts` | Settings get/set via `chrome.storage.local`; defaults |
+| `settings.ts` | Settings get/set via `chrome.storage.local`; defaults (`generationMode`: polished vs fast) |
 | `connections.ts` | Google Drive + GitHub connection state via `chrome.storage.local` |
 | `connectors/` | Drive API, GitHub API, PDF text extraction, and the sync jobs that feed the index (see `connectors/CLAUDE.md`) |
 | `db.ts` | IndexedDB (`irke`): context docs, chunks, answer bank |
