@@ -25,9 +25,13 @@ Read nested guides before editing each area:
 - `src/CLAUDE.md` — message protocol, storage boundaries, answer-source priority
 - `src/background/CLAUDE.md` — service worker flows
 - `src/content/CLAUDE.md` — DOM scraping, story detection, fill safety
-- `src/lib/CLAUDE.md` — context index, connectors, prompts, LLM, IndexedDB
+- `src/lib/CLAUDE.md` — shared types, storage, prompts, LLM, IndexedDB
+- `src/lib/context/CLAUDE.md` — chunking, BM25 / hybrid retrieval, Build index
+- `src/lib/connectors/CLAUDE.md` — Drive, GitHub, PDF, sync jobs
 - `src/sidepanel/CLAUDE.md` — panel UI and draft state
-- `src/options/CLAUDE.md` — settings pages
+- `src/options/CLAUDE.md` — Data / Connectors / Answer bank / AI settings
+- `src/ui/CLAUDE.md` — shared theme tokens
+- `scripts/CLAUDE.md` — smoke tests
 
 ## Development
 

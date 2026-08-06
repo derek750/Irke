@@ -10,7 +10,7 @@ Shared domain logic used by background, content (types/messages only), side pane
 | `messages.ts` | Typed message unions + `sendToBackground` / `sendToTab` |
 | `settings.ts` | Settings get/set via `chrome.storage.local`; defaults |
 | `connections.ts` | Google Drive + GitHub connection state via `chrome.storage.local` |
-| `connectors/` | Drive API, GitHub API, PDF text extraction, and the sync jobs that feed the index |
+| `connectors/` | Drive API, GitHub API, PDF text extraction, and the sync jobs that feed the index (see `connectors/CLAUDE.md`) |
 | `db.ts` | IndexedDB (`irke`): context docs, chunks, answer bank |
 | `answer-bank.ts` | Question fingerprinting, lookup, remember |
 | `prompt.ts` | System / user prompt builders; per-topic guidance; `[NEED INPUT]` contract |
@@ -27,16 +27,7 @@ Schema upgrades go through `DB_VERSION` + `onupgradeneeded` in `db.ts`. Bump the
 
 ## Connectors
 
-| File | Notes |
-|------|-------|
-| `connectors/drive.ts` | `chrome.identity.getAuthToken` for OAuth; read-only scope; one user-picked folder |
-| `connectors/github.ts` | `chrome.identity.launchWebAuthFlow` + PKCE; description + topics + README only, never source files |
-| `connectors/pdf.ts` | `pdfjs-dist` with a bundled worker (CSP forbids a CDN worker) |
-| `connectors/sync.ts` | `syncDrive` / `syncGithub` / `readUploadedFile` — turn remote material into `ContextDoc`s |
-
-A sync is authoritative for its source: `replaceDocsForSource` wipes that source first, so unchecking a repo or deleting a Drive file removes it from the index too.
-
-Syncs run from the **options page**, not the service worker, because PDF extraction needs a DOM-capable context and the worker can be evicted mid-sync.
+See `connectors/CLAUDE.md` for auth, sync contract, and what gets indexed. Short version: syncs are authoritative per source (`replaceDocsForSource`), run from the **options page** (not the worker), and never pull GitHub source files.
 
 ## Prompt contract
 
