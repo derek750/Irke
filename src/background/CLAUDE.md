@@ -43,6 +43,6 @@ Calls `rememberAnswer` in `lib/answer-bank.ts` (fingerprint + upsert).
 ## Changing generation
 
 1. Prompt / constraints → `lib/prompt.ts`
-2. Retrieval → `lib/context/retrieve.ts`
+2. Retrieval → `lib/context/retrieve.ts` (hybrid BM25 + embeddings when chunks are embedded)
 3. Provider HTTP → `lib/llm.ts`
 4. Source-priority logic → `generate.ts` only

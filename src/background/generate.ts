@@ -1,4 +1,5 @@
 import { lookupAnswer } from '@/lib/answer-bank'
+import { embeddingApiKey, embedTexts } from '@/lib/context/embed'
 import { retrieve } from '@/lib/context/retrieve'
 import { listChunks } from '@/lib/db'
 import { complete } from '@/lib/llm'
@@ -32,7 +33,20 @@ export async function generateAnswer({ job, question, regenerate }: GenerateInpu
   const chunks = await listChunks()
   // The JD adds vocabulary the question alone lacks, which is what surfaces the right stories.
   const query = `${question.label}\n${job.title}\n${job.descriptionText.slice(0, JD_QUERY_CHARS)}`
-  const retrieved = retrieve(query, chunks)
+
+  let queryEmbedding: number[] | undefined
+  const hasEmbeddings = chunks.some((chunk) => chunk.embedding?.length)
+  if (hasEmbeddings) {
+    try {
+      const [vector] = await embedTexts(embeddingApiKey(settings), [query])
+      queryEmbedding = vector
+    } catch {
+      // Fall back to BM25 when the embed key is missing or the request fails.
+      queryEmbedding = undefined
+    }
+  }
+
+  const retrieved = retrieve(query, chunks, { queryEmbedding })
 
   const answer = await complete({
     settings,

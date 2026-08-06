@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { readUploadedFile } from '@/lib/connectors/sync'
+import { buildContextIndex } from '@/lib/context/build-index'
 import { SOURCE_LABELS } from '@/lib/context/chunk'
-import { deleteDocAndChunks, listDocs, saveDoc } from '@/lib/db'
+import { deleteDocAndChunks, listChunks, listDocs, saveDoc } from '@/lib/db'
 import { errorMessage } from '@/lib/messages'
 import type { ContextDoc } from '@/lib/types'
 import { DriveConnection } from './DriveConnection'
@@ -10,17 +11,27 @@ import { GithubConnection } from './GithubConnection'
 
 export function ContextTab() {
   const [docs, setDocs] = useState<ContextDoc[]>([])
+  const [embeddedCount, setEmbeddedCount] = useState(0)
+  const [chunkCount, setChunkCount] = useState(0)
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [indexNotice, setIndexNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const fileInput = useRef<HTMLInputElement>(null)
 
-  const refresh = useCallback(() => void listDocs().then(setDocs), [])
+  const refresh = useCallback(() => {
+    void listDocs().then(setDocs)
+    void listChunks().then((chunks) => {
+      setChunkCount(chunks.length)
+      setEmbeddedCount(chunks.filter((chunk) => chunk.embedding?.length).length)
+    })
+  }, [])
   useEffect(refresh, [refresh])
 
   const onAdd = async () => {
     setError(null)
+    setIndexNotice(null)
     if (!text.trim()) {
       setError('Write something first.')
       return
@@ -49,6 +60,7 @@ export function ContextTab() {
     if (!files?.length) return
     const file = files[0]
     setError(null)
+    setIndexNotice(null)
     setBusy('upload')
 
     try {
@@ -75,6 +87,33 @@ export function ContextTab() {
   const onDelete = async (docId: string) => {
     await deleteDocAndChunks(docId)
     refresh()
+  }
+
+  const onBuildIndex = async () => {
+    setError(null)
+    setIndexNotice(null)
+    setBusy('index')
+    try {
+      const result = await buildContextIndex()
+      refresh()
+      if (result.total === 0) {
+        setIndexNotice('Nothing to embed yet. Add a story or sync a connection first.')
+        return
+      }
+      if (result.embedded === 0) {
+        setIndexNotice(`Index already up to date (${result.total} chunks embedded).`)
+        return
+      }
+      setIndexNotice(
+        result.skipped
+          ? `Embedded ${result.embedded} new chunk${result.embedded === 1 ? '' : 's'} (${result.skipped} already done).`
+          : `Embedded ${result.embedded} chunk${result.embedded === 1 ? '' : 's'}.`,
+      )
+    } catch (caught) {
+      setError(errorMessage(caught))
+    } finally {
+      setBusy(null)
+    }
   }
 
   return (
@@ -136,11 +175,23 @@ export function ContextTab() {
           />
         </div>
 
-        {error && <div className="notice error">{error}</div>}
       </div>
 
       <div className="doc-list">
-        <h3>Indexed ({docs.length})</h3>
+        <div className="row space-between">
+          <h3>Indexed ({docs.length})</h3>
+          <button className="primary" onClick={() => void onBuildIndex()} disabled={busy !== null}>
+            {busy === 'index' ? 'Building…' : 'Build index'}
+          </button>
+        </div>
+        <p className="hint">
+          Embeddings power semantic retrieval alongside keywords. Needs an OpenAI API key
+          {chunkCount > 0
+            ? ` — ${embeddedCount}/${chunkCount} chunks embedded.`
+            : '.'}
+        </p>
+        {error && <div className="notice error">{error}</div>}
+        {indexNotice && <div className="notice">{indexNotice}</div>}
         {docs.length === 0 && (
           <p className="hint">Nothing indexed yet. Connect a folder, or write one story to start.</p>
         )}

@@ -15,13 +15,13 @@ Shared domain logic used by background, content (types/messages only), side pane
 | `answer-bank.ts` | Question fingerprinting, lookup, remember |
 | `prompt.ts` | System / user prompt builders; per-topic guidance; `[NEED INPUT]` contract |
 | `llm.ts` | BYOK OpenAI + Anthropic chat completions |
-| `context/` | Chunking, tokenization, BM25 retrieval (see `context/CLAUDE.md`) |
+| `context/` | Chunking, tokenization, BM25 + optional embedding hybrid retrieval (see `context/CLAUDE.md`) |
 
 ## Storage keys / stores
 
 - Settings key: `irke:settings`
 - Connections key: `irke:connections`
-- IndexedDB stores: `context_docs`, `context_chunks`, `answer_bank`
+- IndexedDB stores: `context_docs`, `context_chunks` (optional `embedding` on chunks after Build index), `answer_bank`
 
 Schema upgrades go through `DB_VERSION` + `onupgradeneeded` in `db.ts`. Bump the version when adding stores or indexes. v2 dropped the v1 `brain_docs` / `brain_chunks` stores outright — their records carried the retired profile-era shape.
 

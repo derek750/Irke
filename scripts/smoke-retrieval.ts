@@ -1,6 +1,6 @@
 import { chunkDoc } from '../src/lib/context/chunk.ts'
-import { retrieve } from '../src/lib/context/retrieve.ts'
-import type { ContextDoc } from '../src/lib/types.ts'
+import { cosineSimilarity, retrieve } from '../src/lib/context/retrieve.ts'
+import type { ContextChunk, ContextDoc } from '../src/lib/types.ts'
 
 const docs: ContextDoc[] = [
   {
@@ -57,3 +57,49 @@ for (const query of queries) {
     console.log(`  ${score.toFixed(2)}  ${chunk.docTitle}: ${chunk.text.slice(0, 70).replace(/\n/g, ' ')}…`)
   }
 }
+
+// Fake unit vectors: "leadership" aligns with migration story; "pizza" aligns with nothing useful.
+function unit(values: number[]): number[] {
+  const norm = Math.sqrt(values.reduce((sum, value) => sum + value * value, 0)) || 1
+  return values.map((value) => value / norm)
+}
+
+const axes = {
+  leadership: unit([1, 0.1, 0]),
+  payments: unit([0.2, 1, 0]),
+  pizza: unit([0, 0, 1]),
+}
+
+const embedded: ContextChunk[] = chunks.map((chunk) => {
+  if (chunk.docId === 'story-migration') {
+    return { ...chunk, embedding: axes.leadership, embeddedAt: 1 }
+  }
+  if (chunk.docId === 'story-why-payments' || chunk.docId === 'drive-resume') {
+    return { ...chunk, embedding: axes.payments, embeddedAt: 1 }
+  }
+  return { ...chunk, embedding: unit([0.1, 0.1, 0.1]), embeddedAt: 1 }
+})
+
+const hybridQuery = 'Describe a time you showed ownership when a project slipped.'
+const hybrid = retrieve(hybridQuery, embedded, {
+  limit: 2,
+  queryEmbedding: axes.leadership,
+})
+
+console.log(`\nHybrid Q: ${hybridQuery}`)
+if (!hybrid.length) {
+  console.error('FAIL: hybrid retrieve returned no hits')
+  process.exit(1)
+}
+if (hybrid[0].chunk.docId !== 'story-migration') {
+  console.error(`FAIL: expected migration story first, got ${hybrid[0].chunk.docTitle}`)
+  process.exit(1)
+}
+console.log(`  ok  top hit is ${hybrid[0].chunk.docTitle} (RRF score ${hybrid[0].score.toFixed(4)})`)
+
+const self = cosineSimilarity(axes.leadership, axes.leadership)
+if (Math.abs(self - 1) > 1e-9) {
+  console.error(`FAIL: cosine self-similarity expected 1, got ${self}`)
+  process.exit(1)
+}
+console.log('  ok  cosine self-similarity is 1')

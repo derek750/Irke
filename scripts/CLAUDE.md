@@ -8,7 +8,7 @@ npm run smoke # both scripts below
 
 ## `smoke-retrieval.ts`
 
-Builds a tiny in-memory context index (two written stories, a Drive resume, a GitHub repo), chunks it, and prints BM25 rankings for sample queries.
+Builds a tiny in-memory context index (two written stories, a Drive resume, a GitHub repo), chunks it, prints BM25 rankings for sample queries, then asserts hybrid RRF retrieval with fake vectors.
 
 ```bash
 npm run smoke:retrieval
@@ -19,6 +19,7 @@ Use after changing `src/lib/context/*`. Expected signals:
 - "Why … payments" → the written story ranks first
 - "A time a project did not go as planned" → the narrative story beats the resume
 - Off-topic (e.g. pizza) → no match
+- Hybrid ownership/slip query with fake embeddings → migration story ranks first
 
 ## `smoke-detect.ts`
 

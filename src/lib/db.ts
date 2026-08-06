@@ -2,7 +2,8 @@ import { chunkDoc } from './context/chunk'
 import type { AnswerBankEntry, ContextChunk, ContextDoc, ContextSource } from './types'
 
 const DB_NAME = 'irke'
-const DB_VERSION = 2
+/** v3: chunks may carry optional `embedding` / `embeddedAt` (no new stores). */
+const DB_VERSION = 3
 
 export const STORE_DOCS = 'context_docs'
 export const STORE_CHUNKS = 'context_chunks'
@@ -120,6 +121,14 @@ export async function listChunks(): Promise<ContextChunk[]> {
   return withStore(STORE_CHUNKS, 'readonly', (store) =>
     promisify(store.getAll() as IDBRequest<ContextChunk[]>),
   )
+}
+
+/** Upsert chunks in place (used after embedding so we do not re-chunk). */
+export async function putChunks(chunks: ContextChunk[]): Promise<void> {
+  if (!chunks.length) return
+  await withStore(STORE_CHUNKS, 'readwrite', async (store) => {
+    await Promise.all(chunks.map((chunk) => promisify(store.put(chunk))))
+  })
 }
 
 export async function findAnswer(fingerprint: string): Promise<AnswerBankEntry | null> {

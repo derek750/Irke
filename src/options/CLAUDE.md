@@ -8,7 +8,7 @@ Options page React UI. Opens on first install and from the side panel **Context*
 |------|----------------|
 | `index.html` / `main.tsx` | Vite entry |
 | `Options.tsx` | Tab shell: Context / Answer bank / AI provider |
-| `ContextTab.tsx` | Hosts both connections, the story composer, file upload, and the indexed-doc list |
+| `ContextTab.tsx` | Hosts both connections, the story composer, file upload, Build index, and the indexed-doc list |
 | `DriveConnection.tsx` | Google OAuth, folder picker, sync, disconnect |
 | `DriveFolderPicker.tsx` | Navigable Drive folder browser (browse + search) |
 | `GithubConnection.tsx` | GitHub OAuth sign-in, repo selection, sync, disconnect |
@@ -36,7 +36,9 @@ Four ways in, all landing in the same index via `saveDoc` (`putDoc` + `replaceCh
 3. **Google Drive** — `syncDrive()` over one picked folder, `source: 'drive'`
 4. **GitHub** — `syncGithub()` over the selected repos, `source: 'github'`
 
-Connection syncs go through `replaceDocsForSource`, which clears that source first. Never leave orphan chunks; never call the LLM from this page.
+Connection syncs go through `replaceDocsForSource`, which clears that source first. Never leave orphan chunks.
+
+**Build index** (on the Indexed list) calls `buildContextIndex()` to embed chunks via OpenAI and store vectors on IndexedDB chunks. That is the one intentional LLM-provider call from this page (embeddings only — not chat completions). Requires AI provider set to OpenAI.
 
 ## Google Drive / GitHub setup
 

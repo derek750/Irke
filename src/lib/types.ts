@@ -30,6 +30,9 @@ export interface ContextChunk {
   text: string
   /** Lowercased token counts, precomputed at ingest so retrieval stays cheap. */
   tokens: Record<string, number>
+  /** OpenAI embedding vector; filled by Build index. Absent until then — BM25 still works. */
+  embedding?: number[]
+  embeddedAt?: number
 }
 
 export interface RetrievedChunk {
