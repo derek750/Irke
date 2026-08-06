@@ -13,7 +13,7 @@ Shared domain logic used by background, content (types/messages only), side pane
 | `connectors/` | Drive API, GitHub API, PDF text extraction, and the sync jobs that feed the index (see `connectors/CLAUDE.md`) |
 | `db.ts` | IndexedDB (`irke`): context docs, chunks, answer bank |
 | `answer-bank.ts` | Question fingerprinting, lookup, remember |
-| `prompt.ts` | System / user prompt builders; per-topic guidance; `[NEED INPUT]` contract |
+| `prompt.ts` | Draft + revise prompt builders; context-reading and writing skills; per-topic guidance; `[NEED INPUT]` contract |
 | `llm.ts` | BYOK OpenAI + Anthropic chat completions |
 | `context/` | Chunking, tokenization, BM25 + optional embedding hybrid retrieval (see `context/CLAUDE.md`) |
 
@@ -31,13 +31,18 @@ See `connectors/CLAUDE.md` for auth, sync contract, and what gets indexed. Short
 
 ## Prompt contract
 
-`buildSystemPrompt` / `buildUserPrompt` must keep these rules:
+`buildSystemPrompt` / `buildUserPrompt` (draft pass) and `buildReviseSystemPrompt` / `buildReviseUserPrompt` (revise pass) must keep these rules:
 
 - First person, as the candidate
 - Facts only from context excerpts or the JD
 - No invented employers / titles / dates / degrees / metrics / anecdotes
 - Missing facts → literal `[NEED INPUT]` (`NEEDS_INPUT_MARKER`)
 - Return answer text only (no preamble)
+
+Two skill blocks live in the draft system prompt and are mirrored in the revise checklist:
+
+- **Context skill** — excerpts are evidence about the candidate (experiences *and* motivations), never text to copy or lightly rephrase.
+- **Writing skill** — register rules against known AI tells: varied sentence length, banned stock vocabulary, no "not just X, but Y", no rule-of-three lists, no formal connectors, no em-dash asides, concrete over abstract. Keep the two lists in sync when editing either.
 
 `TOPIC_GUIDANCE` maps each `StoryTopic` to how that kind of question should be answered. Add a topic there and in `content/detect.ts` together.
 

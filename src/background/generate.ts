@@ -3,7 +3,13 @@ import { embeddingApiKey, embedTexts, resolveEmbeddingProvider } from '@/lib/con
 import { retrieve } from '@/lib/context/retrieve'
 import { listChunks } from '@/lib/db'
 import { complete } from '@/lib/llm'
-import { NEEDS_INPUT_MARKER, buildSystemPrompt, buildUserPrompt } from '@/lib/prompt'
+import {
+  NEEDS_INPUT_MARKER,
+  buildReviseSystemPrompt,
+  buildReviseUserPrompt,
+  buildSystemPrompt,
+  buildUserPrompt,
+} from '@/lib/prompt'
 import { getSettings } from '@/lib/settings'
 import type { DetectedQuestion, GeneratedAnswer, JobContext } from '@/lib/types'
 
@@ -57,11 +63,25 @@ export async function generateAnswer({
   const retrieved = retrieve(query, chunks, { queryEmbedding })
   const instructions = extraInstructions ?? settings.extraInstructions
 
-  const answer = await complete({
+  // Pass 1: draft with the context-reading and writing skills in the system prompt.
+  const draft = await complete({
     settings,
     system: buildSystemPrompt(instructions),
     user: buildUserPrompt({ job, question, retrieved }),
   })
+
+  // Pass 2: editor audits the draft against the AI-tell checklist and the
+  // excerpts (copied phrasing, ungrounded claims) and rewrites it.
+  let answer = draft
+  try {
+    answer = await complete({
+      settings,
+      system: buildReviseSystemPrompt(instructions),
+      user: buildReviseUserPrompt({ job, question, retrieved, draft }),
+    })
+  } catch {
+    // A failed polish pass should not throw away a usable draft.
+  }
 
   return {
     fieldId: question.fieldId,
