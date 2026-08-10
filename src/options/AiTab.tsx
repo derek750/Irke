@@ -119,6 +119,24 @@ export function AiTab() {
         </div>
 
         <div>
+          <label className="row" htmlFor="include-generated" style={{ gap: '0.5rem' }}>
+            <input
+              id="include-generated"
+              type="checkbox"
+              checked={settings.includeGeneratedInRag}
+              onChange={(event) => update({ includeGeneratedInRag: event.target.checked })}
+            />
+            Include saved AI drafts in retrieval
+          </label>
+          <p className="hint">
+            When on, answers you saved from the side panel can be retrieved as [PRIOR DRAFT]
+            context. They are never pasted as-is. Off by default so the index stays your own
+            writing until you opt in. Run Build index on the Data tab after saving drafts if you
+            want them in semantic search too.
+          </p>
+        </div>
+
+        <div>
           <label htmlFor="extra">Extra instructions</label>
           <textarea
             id="extra"

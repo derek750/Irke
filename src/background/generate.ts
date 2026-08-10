@@ -1,4 +1,3 @@
-import { lookupAnswer } from '@/lib/answer-bank'
 import { embeddingApiKey, embedTexts, resolveEmbeddingProvider } from '@/lib/context/embed'
 import { retrieve } from '@/lib/context/retrieve'
 import { listChunks } from '@/lib/db'
@@ -26,29 +25,20 @@ const JD_QUERY_CHARS = 1200
 export async function generateAnswer({
   job,
   question,
-  regenerate,
   extraInstructions,
 }: GenerateInput): Promise<GeneratedAnswer> {
-  if (!regenerate) {
-    const remembered = await lookupAnswer(question.label)
-    if (remembered) {
-      return {
-        fieldId: question.fieldId,
-        answer: remembered.answer,
-        source: 'answer_bank',
-        sources: [`Answer bank${remembered.company ? ` (${remembered.company})` : ''}`],
-        needsInput: false,
-      }
-    }
-  }
-
+  // Always draft via the LLM. Saved answers live in the index as `generated` docs and
+  // only enter retrieval when Settings.includeGeneratedInRag is on (never pasted as-is).
   const settings = await getSettings()
   const chunks = await listChunks()
   // The JD adds vocabulary the question alone lacks, which is what surfaces the right stories.
   const query = `${question.label}\n${job.title}\n${job.descriptionText.slice(0, JD_QUERY_CHARS)}`
 
+  const includeGenerated = settings.includeGeneratedInRag
+  const searchable = includeGenerated ? chunks : chunks.filter((chunk) => chunk.source !== 'generated')
+
   let queryEmbedding: number[] | undefined
-  const hasEmbeddings = chunks.some((chunk) => chunk.embedding?.length)
+  const hasEmbeddings = searchable.some((chunk) => chunk.embedding?.length)
   if (hasEmbeddings) {
     try {
       const provider = resolveEmbeddingProvider(settings)
@@ -60,7 +50,7 @@ export async function generateAnswer({
     }
   }
 
-  const retrieved = retrieve(query, chunks, { queryEmbedding })
+  const retrieved = retrieve(query, chunks, { queryEmbedding, includeGenerated })
   const instructions = extraInstructions ?? settings.extraInstructions
 
   // Pass 1: draft with the context-reading and writing skills in the system prompt.

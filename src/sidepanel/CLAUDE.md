@@ -44,4 +44,4 @@ Footer copy: **"Irke never submits for you"** — keep that invariant in UX and 
 
 - After extension reload, the content script is gone until the tab is refreshed — surface the background's "reload the tab" error as-is.
 - `scan` can be null; guard `frameId` / `job` before fill/save (already done — keep it that way).
-- Regenerate should pass `regenerate: true` so the answer bank is skipped (`QuestionCard` currently calls generate with the boolean from the button — keep bank bypass wired).
+- Save answer indexes a prior draft; generation always calls the LLM (no answer-bank paste).

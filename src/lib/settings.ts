@@ -15,6 +15,7 @@ export const DEFAULT_SETTINGS: Settings = {
   temperature: 0.4,
   extraInstructions: '',
   generationMode: 'polished',
+  includeGeneratedInRag: false,
 }
 
 export async function getSettings(): Promise<Settings> {

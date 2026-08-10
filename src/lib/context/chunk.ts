@@ -9,6 +9,7 @@ export const SOURCE_TAGS: Record<ContextSource, string> = {
   document: '[MY DOCUMENT]',
   drive: '[GOOGLE DRIVE]',
   github: '[GITHUB]',
+  generated: '[PRIOR DRAFT]',
 }
 
 export const SOURCE_LABELS: Record<ContextSource, string> = {
@@ -16,6 +17,7 @@ export const SOURCE_LABELS: Record<ContextSource, string> = {
   document: 'Document',
   drive: 'Google Drive',
   github: 'GitHub',
+  generated: 'Prior draft',
 }
 
 /**

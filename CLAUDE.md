@@ -59,8 +59,8 @@ Job page
  │ chrome.tabs.sendMessage
  │
 side panel ──▶ service worker
- ├── answer bank hit? → reuse
  └── retrieve chunks → BYOK LLM → draft
+     (saved drafts in RAG only if opted in)
 
 options page ──▶ Google Drive folder ─┐
  ├─▶ GitHub repo READMEs ────────────┼─▶ chunk + BM25 index (IndexedDB)
@@ -68,7 +68,7 @@ options page ──▶ Google Drive folder ─┐
  └─▶ uploaded PDF / txt / md ────────┘
 ```
 
-Answer sources, cheapest first: **answer bank → context + LLM**. Never invent facts; missing required facts become `[NEED INPUT]`.
+Answer path: **context + LLM** (always). Saved answers are indexed as prior drafts and only enter retrieval when the user enables that setting — never pasted as-is. Never invent facts; missing required facts become `[NEED INPUT]`.
 
 ## Agent guidelines
 

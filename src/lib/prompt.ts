@@ -32,6 +32,7 @@ const CONTEXT_SKILL = [
   'When the question asks about motivation, values, or fit, answer from the person the excerpts describe (their patterns and choices), supported by one concrete experience, rather than listing accomplishments.',
   'Facts (names, employers, dates, numbers, technologies) must come from the excerpts or the job description exactly as given. Interpreting motivation from the material is your job; inventing facts is forbidden.',
   'Each excerpt is raw material from a life, often written for another purpose. Take what answers this question and ignore the rest.',
+  'Excerpts tagged [PRIOR DRAFT] are earlier application answers the candidate saved. Treat them as memory of which story and angle worked — rewrite in fresh words for this role and company. Never paste or lightly edit a prior draft into the new answer.',
 ].join('\n')
 
 /**
@@ -75,13 +76,14 @@ export function buildReviseSystemPrompt(extraInstructions: string): string {
     '',
     'Audit the draft against this checklist and fix everything that fails:',
     '1. AI tells: uniform sentence cadence; the words passionate, delve, leverage, utilize, foster, honed, spearheaded, showcase, testament, journey, align, resonate, thrilled, robust, seamless, innovative, dynamic; connectors like moreover, furthermore, additionally, ultimately; "not just X, but Y" or "not only ... but also" frames; rule-of-three lists; em-dash asides; a generic opener or a closing sentence that summarizes the answer.',
-    '2. Copied phrasing: sentences lifted or lightly rephrased from the excerpts. Retell them in fresh words; the excerpts are evidence about the candidate, not text to reuse.',
+    '2. Copied phrasing: sentences lifted or lightly rephrased from the excerpts (including [PRIOR DRAFT] excerpts). Retell them in fresh words; the excerpts are evidence about the candidate, not text to reuse.',
     '3. Grounding: any employer, title, date, metric, technology, or anecdote that the excerpts and job facts do not support. Remove it or replace it with the literal marker ' +
       NEEDS_INPUT_MARKER +
       `. Keep every ${NEEDS_INPUT_MARKER} already in the draft. Never invent a fact to fill one in.`,
     '4. Genericness: sentences that could sit in anyone else\'s application. Make them particular to this candidate and this company, using only the material given, or cut them.',
     '5. Motivation: the answer should sound like a person with reasons, not a list of qualifications. If the excerpts show why the candidate does this kind of work, let that come through.',
-    '6. Constraints: respect the stated length limit.',
+    '6. Prior drafts: if [PRIOR DRAFT] excerpts appear, keep the underlying story when it fits, but the wording must be new for this application — not a copy of the saved answer.',
+    '7. Constraints: respect the stated length limit.',
     '',
     'Vary sentence length as you rewrite; short sentences next to long ones. Contractions are fine. If the draft already passes the checklist, tighten it lightly instead of rewriting for its own sake.',
     'Return only the final answer text. No commentary, no preamble, no markdown, no quotes around the answer.',
