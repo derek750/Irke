@@ -77,6 +77,13 @@ export async function putDoc(doc: ContextDoc): Promise<void> {
   await withStore(STORE_DOCS, 'readwrite', (store) => promisify(store.put(doc)))
 }
 
+export async function getDoc(id: string): Promise<ContextDoc | null> {
+  const doc = await withStore(STORE_DOCS, 'readonly', (store) =>
+    promisify(store.get(id) as IDBRequest<ContextDoc | undefined>),
+  )
+  return doc ?? null
+}
+
 export async function listDocs(): Promise<ContextDoc[]> {
   const docs = await withStore(STORE_DOCS, 'readonly', (store) =>
     promisify(store.getAll() as IDBRequest<ContextDoc[]>),

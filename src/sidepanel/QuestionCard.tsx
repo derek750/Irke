@@ -2,7 +2,6 @@ import type { DetectedQuestion, StoryTopic } from '@/lib/types'
 import type { DraftState } from './useDrafts'
 
 const DRAFT_SOURCE_LABELS: Record<NonNullable<DraftState['source']>, string> = {
-  answer_bank: 'Reused saved answer',
   llm: 'AI draft',
 }
 

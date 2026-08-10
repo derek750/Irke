@@ -32,20 +32,21 @@ When adding a message type:
 2. Handle it in `background/index.ts` and/or `content/index.ts`
 3. Call it from the UI via `sendToBackground`
 
-## Answer-source priority
+## Answer sources
 
-Generation (`background/generate.ts`) always tries, in order:
+Generation (`background/generate.ts`) always drafts via the LLM over retrieved context.
+Saved answers are **not** pasted back as-is.
 
-1. **Answer bank** — exact fingerprint match unless `regenerate: true` (zero cost)
-2. **Context + LLM** — BM25 over IndexedDB chunks + BYOK completion
-
-Do not reorder this without an explicit product change.
+When the user saves an answer, it is stored in the answer bank **and** mirrored into the
+context index as `source: 'generated'` (`[PRIOR DRAFT]`). Those chunks only enter retrieval
+when Settings.`includeGeneratedInRag` is on (off by default). Embeddings still require a
+manual **Build index** on the Data tab.
 
 ## Storage boundaries
 
 | Store | API | Contents |
 |-------|-----|----------|
-| `chrome.storage.local` | `lib/settings.ts` | Settings (provider, API key, model, temperature, extra instructions) |
+| `chrome.storage.local` | `lib/settings.ts` | Settings (provider, API key, model, temperature, generation mode, includeGeneratedInRag, extra instructions) |
 | `chrome.storage.local` | `lib/connections.ts` | Drive folder + GitHub OAuth session / repo selection |
 | IndexedDB `irke` | `lib/db.ts` | Context docs, chunks, answer-bank entries |
 

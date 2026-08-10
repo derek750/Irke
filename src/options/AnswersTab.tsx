@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
-import { deleteAnswer, listAnswers, putAnswer } from '@/lib/db'
+import { ensureAnswersIndexed, forgetAnswer, updateSavedAnswer } from '@/lib/answer-bank'
+import { listAnswers } from '@/lib/db'
 import type { AnswerBankEntry } from '@/lib/types'
 
 export function AnswersTab() {
@@ -9,16 +10,18 @@ export function AnswersTab() {
   const [draft, setDraft] = useState('')
 
   const refresh = () => void listAnswers().then(setAnswers)
-  useEffect(refresh, [])
+  useEffect(() => {
+    void ensureAnswersIndexed().then(refresh)
+  }, [])
 
   const onSave = async (entry: AnswerBankEntry) => {
-    await putAnswer({ ...entry, answer: draft, updatedAt: Date.now() })
+    await updateSavedAnswer({ ...entry, answer: draft })
     setEditing(null)
     refresh()
   }
 
   const onDelete = async (id: string) => {
-    await deleteAnswer(id)
+    await forgetAnswer(id)
     refresh()
   }
 
@@ -27,8 +30,9 @@ export function AnswersTab() {
       <div>
         <h3>Answer bank</h3>
         <p className="hint">
-          Answers you saved from the side panel. When the same question shows up again, Irke reuses
-          these instead of calling the model.
+          Answers you saved from the side panel. Each save is also indexed as a prior draft. They are
+          never pasted into a new application — turn on &quot;Include saved AI drafts in
+          retrieval&quot; under AI provider if you want them to steer new drafts via RAG.
         </p>
       </div>
 

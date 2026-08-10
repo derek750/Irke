@@ -14,6 +14,8 @@ export const DEFAULT_SETTINGS: Settings = {
   model: DEFAULT_MODELS.openai,
   temperature: 0.4,
   extraInstructions: '',
+  generationMode: 'polished',
+  includeGeneratedInRag: false,
 }
 
 export async function getSettings(): Promise<Settings> {

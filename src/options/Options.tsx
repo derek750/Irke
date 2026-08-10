@@ -4,11 +4,13 @@ import { AiTab } from './AiTab'
 import { AnswersTab } from './AnswersTab'
 import { ConnectorsTab } from './ConnectorsTab'
 import { DataTab } from './DataTab'
+import { GenerateTab } from './GenerateTab'
 
 const TABS = [
   { id: 'data', label: 'Data', render: () => <DataTab /> },
   { id: 'connectors', label: 'Connectors', render: () => <ConnectorsTab /> },
   { id: 'answers', label: 'Answer bank', render: () => <AnswersTab /> },
+  { id: 'generate', label: 'Generate', render: () => <GenerateTab /> },
   { id: 'ai', label: 'AI provider', render: () => <AiTab /> },
 ] as const
 

@@ -188,7 +188,8 @@ export function DataTab() {
         {indexNotice && <div className="notice">{indexNotice}</div>}
         {docs.length === 0 && (
           <p className="hint">
-            Nothing indexed yet. Write a story, upload a file, or sync a connector to start.
+            Nothing indexed yet. Write a story, upload a file, sync a connector, or save an answer from
+            the side panel to start.
           </p>
         )}
         {docs.map((doc) => (

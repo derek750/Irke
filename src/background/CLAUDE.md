@@ -7,7 +7,7 @@ Manifest V3 service worker. Owns multi-frame scanning, answer generation, fill r
 | File | Responsibility |
 |------|----------------|
 | `index.ts` | Message router, install hook (open options + side-panel-on-action), `scanTab`, `activeTabId` |
-| `generate.ts` | Answer bank → retrieve → LLM pipeline; returns `GeneratedAnswer` |
+| `generate.ts` | Retrieve → LLM (draft; optional revise when polished); returns `GeneratedAnswer` |
 
 ## Flows
 
@@ -21,7 +21,16 @@ Manifest V3 service worker. Owns multi-frame scanning, answer generation, fill r
 
 ### Generate (`bg:generate`)
 
-Delegates to `generateAnswer` in `generate.ts`. See `src/CLAUDE.md` for source priority. Retrieval query is `question + title + JD prefix` so the user's stories match role vocabulary.
+Delegates to `generateAnswer` in `generate.ts`. Always LLM — saved answers are never pasted.
+Retrieval query is `question + title + JD prefix`. Chunks with `source: 'generated'` are
+included only when `Settings.includeGeneratedInRag` is true.
+
+LLM generation is **two passes** with the same provider/model when `generationMode` is `polished` (default):
+
+1. **Draft** — `buildSystemPrompt` (grounding rules + context-reading and writing skills) + `buildUserPrompt`.
+2. **Revise** — `buildReviseSystemPrompt` / `buildReviseUserPrompt`: an editor pass that audits the draft against an AI-tell checklist, copied-from-excerpt phrasing, and ungrounded claims, then rewrites. If the revise call fails, the draft is returned as-is.
+
+When `generationMode` is `fast`, only the draft pass runs (half the latency/cost for iteration).
 
 Context syncing does **not** happen here. Drive and GitHub sync from the options page, where a DOM is available for PDF parsing and the worker cannot be evicted mid-run.
 
@@ -31,7 +40,7 @@ Forwards `content:fill` to the **exact** `frameId` from the last scan. Never fil
 
 ### Save (`bg:saveAnswer`)
 
-Calls `rememberAnswer` in `lib/answer-bank.ts` (fingerprint + upsert).
+Calls `rememberAnswer` in `lib/answer-bank.ts` (fingerprint upsert + mirror into the context index as `source: 'generated'`).
 
 ## Invariants
 
@@ -43,6 +52,6 @@ Calls `rememberAnswer` in `lib/answer-bank.ts` (fingerprint + upsert).
 ## Changing generation
 
 1. Prompt / constraints → `lib/prompt.ts`
-2. Retrieval → `lib/context/retrieve.ts` (hybrid BM25 + embeddings when chunks are embedded)
+2. Retrieval → `lib/context/retrieve.ts` (hybrid BM25 + embeddings when chunks are embedded; `includeGenerated` gate)
 3. Provider HTTP → `lib/llm.ts`
-4. Source-priority logic → `generate.ts` only
+4. Pipeline / settings wiring → `generate.ts`

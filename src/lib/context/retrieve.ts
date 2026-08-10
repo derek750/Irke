@@ -15,6 +15,8 @@ const SOURCE_BOOST: Record<ContextSource, number> = {
   document: 1.15,
   drive: 1.1,
   github: 1,
+  /** Prior drafts are memory, not primary evidence — rank below human-authored sources. */
+  generated: 0.85,
 }
 
 interface RetrieveOptions {
@@ -22,6 +24,11 @@ interface RetrieveOptions {
   minScore?: number
   /** When set and chunks have embeddings, fuse BM25 with cosine via RRF. */
   queryEmbedding?: number[]
+  /**
+   * When false (default), drop `source: 'generated'` chunks so AI drafts stay out of RAG
+   * until Settings.includeGeneratedInRag is on.
+   */
+  includeGenerated?: boolean
 }
 
 /**
@@ -31,13 +38,15 @@ interface RetrieveOptions {
 export function retrieve(
   query: string,
   chunks: ContextChunk[],
-  { limit = 8, minScore = 0.01, queryEmbedding }: RetrieveOptions = {},
+  { limit = 8, minScore = 0.01, queryEmbedding, includeGenerated = false }: RetrieveOptions = {},
 ): RetrievedChunk[] {
-  const bm25 = retrieveBm25(query, chunks, { limit: CANDIDATE_POOL, minScore })
+  const corpus = includeGenerated ? chunks : chunks.filter((chunk) => chunk.source !== 'generated')
+
+  const bm25 = retrieveBm25(query, corpus, { limit: CANDIDATE_POOL, minScore })
 
   if (!queryEmbedding?.length) return bm25.slice(0, limit)
 
-  const vector = retrieveVector(queryEmbedding, chunks, {
+  const vector = retrieveVector(queryEmbedding, corpus, {
     limit: CANDIDATE_POOL,
     minCosine: MIN_COSINE,
   })

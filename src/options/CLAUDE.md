@@ -1,13 +1,13 @@
 # `src/options/`
 
-Dashboard UI (Chrome options page). Opens on first install and from the side panel **Dashboard** button. Connect material and configure the provider — generation does not run here.
+Dashboard UI (Chrome options page). Opens on first install and from the side panel **Dashboard** button. Connect material, configure the provider, and optionally dry-run generation against the local index.
 
 ## Files
 
 | File | Responsibility |
 |------|----------------|
 | `index.html` / `main.tsx` | Vite entry |
-| `Options.tsx` | Tab shell: Data / Connectors / Answer bank / AI provider |
+| `Options.tsx` | Tab shell: Data / Connectors / Answer bank / Generate / AI provider |
 | `DataTab.tsx` | Story composer, file upload, Build index, and the indexed-doc list |
 | `ConnectorsTab.tsx` | Hosts Drive and GitHub connection cards |
 | `DriveConnection.tsx` | Google OAuth, folder picker, sync, disconnect |
@@ -15,7 +15,8 @@ Dashboard UI (Chrome options page). Opens on first install and from the side pan
 | `GithubConnection.tsx` | GitHub OAuth sign-in, repo selection, sync, disconnect |
 | `SyncStatus.tsx` | Last-synced line + "indexed N, skipped M" summary |
 | `AnswersTab.tsx` | Edit / delete saved answer-bank entries |
-| `AiTab.tsx` | Provider, model, API key, temperature, extra instructions |
+| `GenerateTab.tsx` | Dry-run generation: question context, instructions, draft preview |
+| `AiTab.tsx` | Provider, model, API key, temperature, generation mode, extra instructions |
 | `options.css` | Layout |
 
 ## Tabs
@@ -24,8 +25,9 @@ Dashboard UI (Chrome options page). Opens on first install and from the side pan
 |-----|-------------|-------|
 | Data | IndexedDB via `db.ts` + `chunkDoc` | Stories, uploads, indexed list, Build index |
 | Connectors | Connection state in `chrome.storage.local`; sync writes IndexedDB | Syncs run here, not in the worker |
-| Answer bank | IndexedDB | Fingerprints are immutable keys; editing updates answer text only |
-| AI provider | `saveSettings` | Switching provider resets model to `DEFAULT_MODELS[provider]` |
+| Answer bank | IndexedDB + mirrored `generated` context docs | Edit/delete sync the index; never auto-pasted on generate |
+| Generate | Calls `bg:generate` (always `regenerate: true`) | Question + optional JD/role; instructions override for the call; Save as default writes `extraInstructions` |
+| AI provider | `saveSettings` | Switching provider resets model to `DEFAULT_MODELS[provider]`; generation mode is `polished` / `fast`; `includeGeneratedInRag` gates prior drafts in retrieval |
 
 There is no Profile tab. Irke does not answer name / email / salary / work-authorization questions, so it has nothing to store for them.
 
@@ -37,10 +39,11 @@ Four ways in, all landing in the same index via `saveDoc` (`putDoc` + `replaceCh
 2. **Upload** — PDF / txt / md through `readUploadedFile`, `source: 'document'`
 3. **Google Drive** — `syncDrive()` over one picked folder (Connectors tab), `source: 'drive'`
 4. **GitHub** — `syncGithub()` over the selected repos (Connectors tab), `source: 'github'`
+5. **Prior draft** — side-panel Save answer → answer bank + `source: 'generated'` (RAG only when AI setting is on)
 
 Connection syncs go through `replaceDocsForSource`, which clears that source first. Never leave orphan chunks. Synced docs show up on the Data tab Indexed list.
 
-**Build index** (on the Data tab Indexed list) calls `buildContextIndex()` to embed chunks via OpenAI or OpenRouter and store vectors on IndexedDB chunks. That is the one intentional LLM-provider call from this page (embeddings only — not chat completions). Requires AI provider set to OpenAI or OpenRouter.
+**Build index** (on the Data tab Indexed list) calls `buildContextIndex()` to embed chunks via OpenAI or OpenRouter and store vectors on IndexedDB chunks. Requires AI provider set to OpenAI or OpenRouter. The **Generate** tab calls `bg:generate` for a dry-run draft (chat completion, not embeddings).
 
 ## Google Drive / GitHub setup
 

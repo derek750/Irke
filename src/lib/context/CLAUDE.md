@@ -36,13 +36,15 @@ Anthropic has no embeddings API — Build index requires the AI provider set to 
 | `document` | `[MY DOCUMENT]` | 1.15 | Uploaded PDF / txt / md |
 | `drive` | `[GOOGLE DRIVE]` | 1.10 | Synced Drive folder |
 | `github` | `[GITHUB]` | 1.00 | Synced repo description + README |
+| `generated` | `[PRIOR DRAFT]` | 0.85 | Saved side-panel answers (RAG only if `includeGeneratedInRag`) |
 
-Tags go into the chunk text so the model knows what it is reading. Boosts favor material the user wrote deliberately over material that happened to be lying in a folder or repo.
+Tags go into the chunk text so the model knows what it is reading. Boosts favor material the user wrote deliberately over material that happened to be lying in a folder or repo. Prior drafts rank below human sources so they steer without drowning out stories.
 
 ## Retrieval
 
-`retrieve(query, chunks, { limit, minScore, queryEmbedding })`:
+`retrieve(query, chunks, { limit, minScore, queryEmbedding, includeGenerated })`:
 
+- When `includeGenerated` is false (default), drop `source: 'generated'` before scoring
 - Always score with BM25 (`K1=1.5`, `B=0.75`) × source boost
 - When `queryEmbedding` is set and chunks have vectors: cosine × boost, then reciprocal rank fusion (RRF) with BM25
 - Drop BM25 scores ≤ `minScore` (default `0.01`); drop cosine &lt; `0.2`

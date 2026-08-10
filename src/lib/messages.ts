@@ -21,6 +21,8 @@ export type BackgroundRequest =
       job: JobContext
       question: DetectedQuestion
       regenerate: boolean
+      /** When set, overrides Settings.extraInstructions for this call only. */
+      extraInstructions?: string
     }
   | { type: 'bg:fill'; fieldId: string; value: string; frameId: number }
   | { type: 'bg:saveAnswer'; question: string; answer: string; company: string }

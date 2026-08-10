@@ -1,15 +1,25 @@
 export type LlmProvider = 'openai' | 'anthropic' | 'openrouter'
 
+/** Fast = draft only; polished = draft + revise pass (default). */
+export type GenerationMode = 'fast' | 'polished'
+
 export interface Settings {
   provider: LlmProvider
   apiKey: string
   model: string
   temperature: number
   extraInstructions: string
+  generationMode: GenerationMode
+  /**
+   * When true, saved AI drafts (`source: 'generated'`) are eligible for retrieval.
+   * Off by default so the corpus stays human-authored until the user opts in.
+   * Embeddings for new drafts still require a manual Build index.
+   */
+  includeGeneratedInRag: boolean
 }
 
 /** Where a context document came from. Doubles as the tag prefixed onto every chunk. */
-export type ContextSource = 'story' | 'document' | 'drive' | 'github'
+export type ContextSource = 'story' | 'document' | 'drive' | 'github' | 'generated'
 
 export interface ContextDoc {
   id: string
@@ -42,7 +52,7 @@ export interface RetrievedChunk {
 
 export interface AnswerBankEntry {
   id: string
-  /** Normalized question text; the lookup key for reuse. */
+  /** Normalized question text; the upsert key when saving. */
   fingerprint: string
   question: string
   answer: string
@@ -93,7 +103,7 @@ export interface PageScan {
 export interface GeneratedAnswer {
   fieldId: string
   answer: string
-  source: 'answer_bank' | 'llm'
+  source: 'llm'
   sources: string[]
   needsInput: boolean
 }

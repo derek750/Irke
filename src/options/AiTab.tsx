@@ -1,12 +1,17 @@
 import { useEffect, useState } from 'react'
 
 import { DEFAULT_MODELS, getSettings, saveSettings } from '@/lib/settings'
-import type { LlmProvider, Settings } from '@/lib/types'
+import type { GenerationMode, LlmProvider, Settings } from '@/lib/types'
 
 const PROVIDER_LABELS: Record<LlmProvider, string> = {
   openai: 'OpenAI',
   anthropic: 'Anthropic (Claude)',
   openrouter: 'OpenRouter',
+}
+
+const MODE_LABELS: Record<GenerationMode, string> = {
+  polished: 'Polished (draft + revise)',
+  fast: 'Fast (draft only)',
 }
 
 export function AiTab() {
@@ -95,6 +100,43 @@ export function AiTab() {
         </div>
 
         <div>
+          <label htmlFor="generation-mode">Generation mode</label>
+          <select
+            id="generation-mode"
+            value={settings.generationMode}
+            onChange={(event) => update({ generationMode: event.target.value as GenerationMode })}
+          >
+            {(Object.keys(MODE_LABELS) as GenerationMode[]).map((mode) => (
+              <option key={mode} value={mode}>
+                {MODE_LABELS[mode]}
+              </option>
+            ))}
+          </select>
+          <p className="hint">
+            Polished runs a second editor pass that strips AI tells. Fast skips it — roughly half the
+            wait and cost when you are iterating.
+          </p>
+        </div>
+
+        <div>
+          <label className="row" htmlFor="include-generated" style={{ gap: '0.5rem' }}>
+            <input
+              id="include-generated"
+              type="checkbox"
+              checked={settings.includeGeneratedInRag}
+              onChange={(event) => update({ includeGeneratedInRag: event.target.checked })}
+            />
+            Include saved AI drafts in retrieval
+          </label>
+          <p className="hint">
+            When on, answers you saved from the side panel can be retrieved as [PRIOR DRAFT]
+            context. They are never pasted as-is. Off by default so the index stays your own
+            writing until you opt in. Run Build index on the Data tab after saving drafts if you
+            want them in semantic search too.
+          </p>
+        </div>
+
+        <div>
           <label htmlFor="extra">Extra instructions</label>
           <textarea
             id="extra"
@@ -103,6 +145,9 @@ export function AiTab() {
             placeholder="e.g. Keep it direct and plain. No corporate buzzwords. Never mention salary."
             onChange={(event) => update({ extraInstructions: event.target.value })}
           />
+          <p className="hint">
+            Also editable on the Generate tab when you want to try a draft with different steering.
+          </p>
         </div>
 
         <div className="save-bar">
