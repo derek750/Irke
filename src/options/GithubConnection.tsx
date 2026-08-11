@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 
 import { getConnections, patchConnections } from '@/lib/connections'
 import type { GithubConnection as GithubState } from '@/lib/connections'
@@ -16,9 +16,11 @@ interface GithubConnectionProps {
 export function GithubConnection({ onChanged }: GithubConnectionProps) {
   const [github, setGithub] = useState<GithubState | null>(null)
   const [repos, setRepos] = useState<GithubRepo[]>([])
+  const [query, setQuery] = useState('')
   const [busy, setBusy] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [status, setStatus] = useState<string | null>(null)
+  const [open, setOpen] = useState(false)
   const configured = isGithubConfigured()
 
   useEffect(() => {
@@ -36,6 +38,16 @@ export function GithubConnection({ onChanged }: GithubConnectionProps) {
       setError(errorMessage(caught))
     }
   }
+
+  const filteredRepos = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    if (!needle) return repos
+    return repos.filter(
+      (repo) =>
+        repo.fullName.toLowerCase().includes(needle) ||
+        (repo.description?.toLowerCase().includes(needle) ?? false),
+    )
+  }, [repos, query])
 
   const run = async (label: string, task: () => Promise<void>) => {
     setBusy(label)
@@ -85,71 +97,85 @@ export function GithubConnection({ onChanged }: GithubConnectionProps) {
       await patchConnections({ github: next })
       setGithub(next)
       setRepos([])
+      setQuery('')
       onChanged()
     })
 
   if (!github) return null
 
   return (
-    <div className="card stack">
-      <div className="row space-between">
-        <h2>GitHub</h2>
+    <div className="source-group">
+      <button
+        type="button"
+        className="source-group-head"
+        onClick={() => setOpen((value) => !value)}
+        aria-expanded={open}
+      >
+        <span className="source-group-chevron" aria-hidden="true">
+          {open ? '▾' : '▸'}
+        </span>
+        <span className="source-group-label">GitHub</span>
         {github.login ? (
           <span className="badge success">{github.login}</span>
         ) : (
           <span className="badge">Not connected</span>
         )}
-      </div>
-      <p className="hint">
-        Irke reads the description and README of the repos you pick — the prose that explains what a
-        project was, not the source. Good for "tell us about something you built".
-      </p>
+      </button>
 
-      {!configured ? (
-        <div className="notice info">GitHub is not configured for this build.</div>
-      ) : !github.token ? (
-        <div className="row">
-          <button className="primary" onClick={onConnect} disabled={busy !== null}>
-            {busy === 'connect' ? 'Opening GitHub…' : 'Connect GitHub'}
-          </button>
-        </div>
-      ) : (
-        <>
-          <div>
-            <label>Repositories ({github.repos.length} selected)</label>
-            <div className="scroll-list">
-              {repos.length === 0 && <p className="hint">No repositories found for this account.</p>}
-              {repos.map((repo) => (
-                <label key={repo.fullName} className="check-row">
-                  <input
-                    type="checkbox"
-                    checked={github.repos.includes(repo.fullName)}
-                    disabled={busy !== null}
-                    onChange={() => void onToggleRepo(repo.fullName)}
-                  />
-                  <span className="check-main">
-                    <span className="doc-title">{repo.fullName}</span>
-                    <span className="doc-preview">{repo.description || 'No description'}</span>
-                  </span>
-                </label>
-              ))}
+      {open && (
+        <div className="source-group-body stack">
+          {!configured ? (
+            <div className="notice info">GitHub is not configured for this build.</div>
+          ) : !github.token ? (
+            <div className="row">
+              <button className="primary" onClick={onConnect} disabled={busy !== null}>
+                {busy === 'connect' ? 'Opening GitHub…' : 'Connect GitHub'}
+              </button>
             </div>
-          </div>
+          ) : (
+            <>
+              <div>
+                <label htmlFor="repo-search">Repositories ({github.repos.length} selected)</label>
+                <input
+                  id="repo-search"
+                  type="search"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                />
+                <div className="scroll-list repo-list">
+                  {filteredRepos.map((repo) => (
+                    <label key={repo.fullName} className="check-row">
+                      <input
+                        type="checkbox"
+                        checked={github.repos.includes(repo.fullName)}
+                        disabled={busy !== null}
+                        onChange={() => void onToggleRepo(repo.fullName)}
+                      />
+                      <span className="check-main">
+                        <span className="doc-title">{repo.fullName}</span>
+                        {repo.description && <span className="doc-preview">{repo.description}</span>}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-          <div className="row">
-            <button className="primary" onClick={onSync} disabled={busy !== null || !github.repos.length}>
-              {busy === 'sync' ? 'Syncing…' : 'Sync now'}
-            </button>
-            <button className="ghost danger" onClick={onDisconnect} disabled={busy !== null}>
-              Disconnect
-            </button>
-            <SyncStatus syncedAt={github.syncedAt} />
-          </div>
-        </>
+              <div className="row connector-actions">
+                <button className="primary" onClick={onSync} disabled={busy !== null || !github.repos.length}>
+                  {busy === 'sync' ? 'Syncing…' : 'Sync'}
+                </button>
+                <button className="ghost danger" onClick={onDisconnect} disabled={busy !== null}>
+                  Disconnect
+                </button>
+                <SyncStatus syncedAt={github.syncedAt} />
+              </div>
+            </>
+          )}
+
+          {status && <div className="notice info">{status}</div>}
+          {error && <div className="notice error">{error}</div>}
+        </div>
       )}
-
-      {status && <div className="notice info">{status}</div>}
-      {error && <div className="notice error">{error}</div>}
     </div>
   )
 }

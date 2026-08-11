@@ -4,6 +4,8 @@ export interface DriveConnection {
   /** Empty until the user picks a folder; only files inside it are ever read. */
   folderId: string
   folderName: string
+  /** Google account email for the connected Drive grant. */
+  email: string
   syncedAt: number | null
 }
 
@@ -22,7 +24,7 @@ export interface Connections {
 }
 
 export const EMPTY_CONNECTIONS: Connections = {
-  drive: { folderId: '', folderName: '', syncedAt: null },
+  drive: { folderId: '', folderName: '', email: '', syncedAt: null },
   github: { token: '', login: '', repos: [], syncedAt: null },
 }
 

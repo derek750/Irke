@@ -247,6 +247,14 @@
   padding: 0 10px 10px;
 }
 
+.source-group-body.stack {
+  gap: 10px;
+}
+
+.repo-list {
+  margin-top: 8px;
+}
+
 .doc-item {
   display: flex;
   align-items: center;
@@ -299,10 +307,9 @@
   resize: vertical;
 }
 
-.save-bar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.connector-actions button {
+  min-width: 108px;
+  justify-content: center;
 }
 
 .hint {

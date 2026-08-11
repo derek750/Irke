@@ -18,6 +18,7 @@ export function DataTab() {
   const [indexNotice, setIndexNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [query, setQuery] = useState('')
   const [openSources, setOpenSources] = useState<Partial<Record<ContextSource, boolean>>>({})
   const fileInput = useRef<HTMLInputElement>(null)
 
@@ -27,9 +28,19 @@ export function DataTab() {
   useEffect(refresh, [refresh])
 
   const grouped = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    const filtered = needle
+      ? docs.filter(
+          (doc) =>
+            doc.title.toLowerCase().includes(needle) ||
+            doc.text.toLowerCase().includes(needle) ||
+            SOURCE_LABELS[doc.source].toLowerCase().includes(needle),
+        )
+      : docs
+
     const map = new Map<ContextSource, ContextDoc[]>()
     for (const source of SOURCE_ORDER) map.set(source, [])
-    for (const doc of docs) {
+    for (const doc of filtered) {
       const bucket = map.get(doc.source) ?? []
       bucket.push(doc)
       map.set(doc.source, bucket)
@@ -39,7 +50,12 @@ export function DataTab() {
       label: SOURCE_LABELS[source],
       items: map.get(source) ?? [],
     })).filter((group) => group.items.length > 0)
-  }, [docs])
+  }, [docs, query])
+
+  const visibleCount = useMemo(
+    () => grouped.reduce((sum, group) => sum + group.items.length, 0),
+    [grouped],
+  )
 
   const closeUpload = () => {
     setUploadOpen(false)
@@ -138,14 +154,15 @@ export function DataTab() {
     setOpenSources((prev) => ({ ...prev, [source]: !(prev[source] ?? false) }))
   }
 
-  const isSourceOpen = (source: ContextSource) => openSources[source] ?? false
+  const isSourceOpen = (source: ContextSource) =>
+    query.trim() ? true : (openSources[source] ?? false)
 
   return (
     <section className="section">
       {error && <div className="notice error">{error}</div>}
 
       <div className="row space-between">
-        <h3>Indexed ({docs.length})</h3>
+        <h3>Indexed ({query.trim() ? `${visibleCount}/${docs.length}` : docs.length})</h3>
         <div className="row">
           <button className="ghost" onClick={() => setUploadOpen(true)} disabled={busy !== null}>
             Upload
@@ -155,6 +172,14 @@ export function DataTab() {
           </button>
         </div>
       </div>
+
+      <input
+        id="context-search"
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        aria-label="Search context"
+      />
 
       {indexNotice && <div className="notice">{indexNotice}</div>}
 
