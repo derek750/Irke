@@ -28,11 +28,11 @@ export function AnswersTab() {
   return (
     <section className="section">
       <div>
-        <h3>Answer bank</h3>
+        <h3>Bank</h3>
         <p className="hint">
           Answers you saved from the side panel. Each save is also indexed as a prior draft. They are
           never pasted into a new application — turn on &quot;Include saved AI drafts in
-          retrieval&quot; under AI provider if you want them to steer new drafts via RAG.
+          retrieval&quot; under Settings if you want them to steer new drafts via RAG.
         </p>
       </div>
 
