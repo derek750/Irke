@@ -1,7 +1,8 @@
 .app {
-  min-height: 100vh;
+  height: 100vh;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .topbar {
@@ -72,13 +73,80 @@
 
 .workspace {
   flex: 1;
+  min-height: 0;
   width: 100%;
-  max-width: 860px;
+  max-width: 1100px;
   margin: 0 auto;
-  padding: 28px 22px 60px;
+  padding: 20px 22px;
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow: auto;
+}
+
+.generate-layout {
+  display: grid;
+  grid-template-columns: 45fr 55fr;
+  gap: 16px;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+}
+
+.generate-settings {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+  min-height: 0;
+}
+
+.generate-question-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.generate-question-card > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  gap: 4px;
+}
+
+.generate-question {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  resize: none;
+}
+
+.generate-output {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.generate-draft {
+  flex: 1;
+  min-height: 0;
+  resize: none;
+}
+
+@media (max-width: 820px) {
+  .generate-layout {
+    grid-template-columns: 1fr;
+    flex: none;
+  }
+
+  .generate-question,
+  .generate-draft {
+    min-height: 220px;
+    resize: vertical;
+  }
 }
 
 .section {
