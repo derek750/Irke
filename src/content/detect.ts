@@ -4,7 +4,7 @@ export const FIELD_ID_ATTRIBUTE = 'data-irke-field'
 
 type FormControl = HTMLInputElement | HTMLTextAreaElement
 
-/** Never touch: bot traps, credentials, uploads, verification. */
+/** Never touch: bot traps, credentials, verification. */
 const BLOCKED_PATTERN =
   /captcha|recaptcha|hcaptcha|turnstile|honeypot|password|otp|verification|creditcard|card-number|ssn|social-security/i
 
@@ -40,6 +40,9 @@ const TOPIC_PATTERNS: [StoryTopic, RegExp][] = [
 
 /** Below this a textarea is a one-liner (a link, a headline), not somewhere a story fits. */
 const MIN_STORY_MAX_LENGTH = 120
+
+/** How far up to look for the visible widget wrapping a hidden file input. */
+const MAX_ANCESTOR_DEPTH = 4
 
 let fieldCounter = 0
 
@@ -77,6 +80,10 @@ export function classifyLabel(label: string): StoryTopic | null {
 function classify(label: string, control: FormControl): StoryTopic | null {
   const matched = classifyLabel(label)
 
+  // A cover letter is the one document Irke can produce, so it is the one upload it will claim.
+  // Resume, transcript, and portfolio uploads are somebody else's file.
+  if (isUpload(control)) return matched === 'cover_letter' ? matched : null
+
   if (control instanceof HTMLTextAreaElement) {
     if (SPECIFICS_PATTERN.test(label)) return null
     if (control.maxLength > 0 && control.maxLength < MIN_STORY_MAX_LENGTH) return null
@@ -88,15 +95,21 @@ function classify(label: string, control: FormControl): StoryTopic | null {
   return matched && matched !== 'open_ended' ? matched : null
 }
 
+export function isUpload(control: FormControl): control is HTMLInputElement {
+  return control instanceof HTMLInputElement && control.type === 'file'
+}
+
 function isEligible(control: FormControl): boolean {
   if (control.disabled || control.readOnly) return false
   if (control.getAttribute('aria-hidden') === 'true') return false
-  if (control instanceof HTMLInputElement && control.type !== 'text') return false
+  if (control instanceof HTMLInputElement && control.type !== 'text' && control.type !== 'file')
+    return false
 
   const signature = `${control.name} ${control.id} ${control.className} ${control.getAttribute('autocomplete') ?? ''}`
   if (BLOCKED_PATTERN.test(signature)) return false
 
-  return isVisible(control)
+  // Upload widgets hide the real input behind a styled button, so judge the wrapper instead.
+  return isUpload(control) ? hasVisibleAncestor(control) : isVisible(control)
 }
 
 function isVisible(element: HTMLElement): boolean {
@@ -106,6 +119,15 @@ function isVisible(element: HTMLElement): boolean {
   return rect.width > 0 || rect.height > 0
 }
 
+function hasVisibleAncestor(control: FormControl): boolean {
+  let node: HTMLElement | null = control
+  for (let depth = 0; node && depth <= MAX_ANCESTOR_DEPTH; depth += 1) {
+    if (isVisible(node)) return true
+    node = node.parentElement
+  }
+  return false
+}
+
 function buildQuestion(control: FormControl, label: string, topic: StoryTopic): DetectedQuestion {
   let fieldId = control.getAttribute(FIELD_ID_ATTRIBUTE)
   if (!fieldId) {
@@ -113,13 +135,18 @@ function buildQuestion(control: FormControl, label: string, topic: StoryTopic): 
     control.setAttribute(FIELD_ID_ATTRIBUTE, fieldId)
   }
 
+  // A file input reports maxLength -1 and a fake `C:\fakepath\…` value; neither means anything.
+  const upload = isUpload(control)
+
   return {
     fieldId,
     label,
     topic,
+    control: upload ? 'file' : 'text',
     required: control.required || control.getAttribute('aria-required') === 'true',
-    maxLength: control.maxLength > 0 && control.maxLength < 100_000 ? control.maxLength : null,
-    currentValue: control.value ?? '',
+    maxLength:
+      !upload && control.maxLength > 0 && control.maxLength < 100_000 ? control.maxLength : null,
+    currentValue: upload ? '' : (control.value ?? ''),
   }
 }
 

@@ -3,6 +3,18 @@ export type LlmProvider = 'openai' | 'openrouter'
 /** Fast = draft only; polished = draft + revise pass (default). */
 export type GenerationMode = 'fast' | 'polished'
 
+/**
+ * Contact details printed at the top of a generated cover letter. Documents only — Irke still
+ * never types any of this into a form field. Blank entries are left off the letter.
+ */
+export interface Letterhead {
+  name: string
+  email: string
+  phone: string
+  location: string
+  links: string
+}
+
 export interface Settings {
   provider: LlmProvider
   apiKey: string
@@ -16,6 +28,7 @@ export interface Settings {
    * Embeddings for new drafts still require a manual Build index.
    */
   includeGeneratedInRag: boolean
+  letterhead: Letterhead
 }
 
 /** Where a context document came from. Doubles as the tag prefixed onto every chunk. */
@@ -55,10 +68,17 @@ export interface AnswerBankEntry {
   /** Normalized question text; the upsert key when saving. */
   fingerprint: string
   question: string
+  /** The current pick — the one mirrored into the context index. */
   answer: string
   company: string
   updatedAt: number
   useCount: number
+  /**
+   * Every answer this question has had, oldest first, `answer` last. Regenerating appends rather
+   * than overwrites, so an earlier draft is still there if the newer one turned out worse.
+   * Absent on rows written before versioning; treat as `[answer]`.
+   */
+  versions?: string[]
 }
 
 /**
@@ -82,6 +102,8 @@ export interface DetectedQuestion {
   maxLength: number | null
   currentValue: string
   topic: StoryTopic
+  /** A file upload can be drafted and turned into a PDF, but never written to directly. */
+  control: 'text' | 'file'
 }
 
 export interface JobContext {

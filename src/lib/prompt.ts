@@ -3,6 +3,10 @@ import type { DetectedQuestion, JobContext, RetrievedChunk, StoryTopic } from '.
 export const NEEDS_INPUT_MARKER = '[NEED INPUT]'
 
 const MAX_JD_CHARS = 4000
+/** Enough of a rejected answer to recognize its angle without paying for the whole thing twice. */
+const MAX_PREVIOUS_CHARS = 1500
+/** Past this the oldest attempts cost more in tokens than they save in repetition. */
+const MAX_PREVIOUS_ATTEMPTS = 4
 
 const TOPIC_GUIDANCE: Record<StoryTopic, string> = {
   cover_letter:
@@ -98,8 +102,10 @@ export function buildReviseUserPrompt(input: {
   question: DetectedQuestion
   retrieved: RetrievedChunk[]
   draft: string
+  /** Answers the candidate has already rejected, oldest first, when this call is a regenerate. */
+  previous?: string[]
 }): string {
-  const { job, question, retrieved, draft } = input
+  const { job, question, retrieved, draft, previous } = input
   const sections: string[] = []
 
   sections.push(
@@ -123,6 +129,13 @@ export function buildReviseUserPrompt(input: {
   sections.push(`## Constraints\n${describeConstraints(question)}`)
   sections.push(`## Draft to edit\n${draft}`)
 
+  // Without this the editor pass quietly normalizes every retry back onto one answer.
+  const rejected = rejectedSection(
+    previous,
+    'Do not edit the draft back toward any attempt above. Any sentence that closely matches one needs rewriting.',
+  )
+  if (rejected) sections.push(rejected)
+
   return sections.join('\n\n')
 }
 
@@ -130,8 +143,10 @@ export function buildUserPrompt(input: {
   job: JobContext
   question: DetectedQuestion
   retrieved: RetrievedChunk[]
+  /** Answers the candidate has already rejected, oldest first, when this call is a regenerate. */
+  previous?: string[]
 }): string {
-  const { job, question, retrieved } = input
+  const { job, question, retrieved, previous } = input
   const sections: string[] = []
 
   sections.push(
@@ -155,7 +170,35 @@ export function buildUserPrompt(input: {
   sections.push(`## How to answer\n${TOPIC_GUIDANCE[question.topic]}`)
   sections.push(`## Constraints\n${describeConstraints(question)}`)
 
+  const rejected = rejectedSection(
+    previous,
+    'Write an answer unlike every attempt above. The facts stay the same, the angle does not: start somewhere else, lead with different material from the excerpts, and reuse none of that phrasing or structure.',
+  )
+  if (rejected) sections.push(rejected)
+
   return sections.join('\n\n')
+}
+
+/**
+ * Lists the answers already thrown away. Naming only the most recent one lets the model circle
+ * back to the attempt before it, which reads as "the same answer again" to the person clicking.
+ */
+function rejectedSection(previous: string[] | undefined, closing: string): string | null {
+  const attempts = (previous ?? [])
+    .map((attempt) => attempt.trim())
+    .filter(Boolean)
+    .slice(-MAX_PREVIOUS_ATTEMPTS)
+  if (!attempts.length) return null
+
+  const heading =
+    attempts.length === 1
+      ? '## Answer the candidate rejected'
+      : `## ${attempts.length} answers the candidate rejected`
+  const body = attempts
+    .map((attempt, index) => `### Rejected ${index + 1}\n${attempt.slice(0, MAX_PREVIOUS_CHARS)}`)
+    .join('\n\n')
+
+  return [heading, body, '', closing].join('\n')
 }
 
 function describeConstraints(question: DetectedQuestion): string {

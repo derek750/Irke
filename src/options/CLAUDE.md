@@ -16,20 +16,24 @@ Dashboard UI (Chrome options page). Opens on first install and from the side pan
 | `SyncStatus.tsx` | Last-synced line + "indexed N, skipped M" summary |
 | `AnswersTab.tsx` | Bank: edit / delete saved answer-bank entries |
 | `GenerateTab.tsx` | Dry-run generation: question context, instructions, draft preview |
-| `AiTab.tsx` | Settings: provider, model, API key, temperature, generation mode, extra instructions |
+| `AiTab.tsx` | Settings: provider, model, API key, temperature, generation mode, extra instructions, letterhead |
 | `options.css` | Dashboard shell + layout |
 
 ## Nav
 
 | Nav | Persistence | Notes |
 |-----|-------------|-------|
-| Generate | Calls `bg:generate` (always `regenerate: true`) | Question + optional JD/role; instructions override for the call; Save as default writes `extraInstructions` |
+| Generate | Calls `bg:generate` (always `regenerate: true`, passing the current draft as `previousAnswers` so repeat clicks reground and vary) | Question + optional JD/role; instructions override for the call; Save as default writes `extraInstructions`; retrieved documents sit behind the shared `SourcesPopover` |
 | Context | IndexedDB via `db.ts` + `chunkDoc` | Stories, uploads, indexed list, Build index (was Data) |
 | Connectors | Connection state in `chrome.storage.local`; sync writes IndexedDB | Syncs run here, not in the worker |
 | Bank | IndexedDB + mirrored `generated` context docs | Saved side-panel answers; never auto-pasted on generate |
-| Settings (right) | `saveSettings` | Switching provider resets model to `DEFAULT_MODELS[provider]`; generation mode is `polished` / `fast`; `includeGeneratedInRag` gates prior drafts in retrieval |
+| Settings (right) | `saveSettings` | Three collapsible groups: Model, Instructions, Letterhead. Switching provider resets model to `DEFAULT_MODELS[provider]`, and pasting an `sk-or-` key switches the provider to OpenRouter in front of the user (`reconcileProvider`) so the dropdown cannot claim a destination the key will be rejected by; generation mode is `polished` / `fast`; `includeGeneratedInRag` gates prior drafts in retrieval |
 
-There is no Profile tab. Irke does not answer name / email / salary / work-authorization questions, so it has nothing to store for them.
+There is no Profile tab. Irke does not answer name / email / salary / work-authorization questions on a form, so it has nothing to store for them.
+
+**Letterhead is the one exception, and a narrow one.** A cover letter has to be signed and addressed, so Settings holds a name, email, phone, location, and links used *only* to typeset a generated document. Nothing in it is ever written into a form field. Blank entries are simply left off the letter, so partial info is fine.
+
+The name field is special: leave it blank and `bg:resolveLetterheadName` reads it out of your own indexed material (one model call, cached in `chrome.storage.local`). The Settings field shows what it found as the placeholder, so you can see and override it. Opening the Letterhead group is what triggers the lookup.
 
 ## Context ingest
 

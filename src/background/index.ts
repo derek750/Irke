@@ -2,6 +2,7 @@ import { rememberAnswer } from '@/lib/answer-bank'
 import type { BackgroundRequest, BackgroundResponse } from '@/lib/messages'
 import { errorMessage, sendToTab } from '@/lib/messages'
 import { generateAnswer } from './generate'
+import { resolveLetterheadName } from './letterhead'
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {})
@@ -30,6 +31,8 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
         question: request.question,
         regenerate: request.regenerate,
         extraInstructions: request.extraInstructions,
+        steer: request.steer,
+        previousAnswers: request.previousAnswers,
       })
       return { ok: true, type: 'generate', result }
     }
@@ -48,6 +51,10 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
     case 'bg:saveAnswer': {
       await rememberAnswer(request)
       return { ok: true, type: 'saveAnswer' }
+    }
+
+    case 'bg:resolveLetterheadName': {
+      return { ok: true, type: 'letterheadName', name: await resolveLetterheadName() }
     }
 
     default:

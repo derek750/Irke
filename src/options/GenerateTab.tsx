@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import { sendToBackground } from '@/lib/messages'
 import { getSettings, saveSettings } from '@/lib/settings'
+import { SourcesPopover } from '@/ui/SourcesPopover'
 
 const TEST_FIELD_ID = 'dashboard-test'
 
@@ -50,8 +51,10 @@ export function GenerateTab() {
         maxLength: null,
         currentValue: '',
         topic: 'open_ended',
+        control: 'text',
       },
       regenerate: true,
+      previousAnswers: draft ? [draft] : undefined,
       extraInstructions: instructions,
     })
 
@@ -113,16 +116,10 @@ export function GenerateTab() {
       <div className="generate-output card stack">
         <div className="row space-between">
           <h3>Draft</h3>
-          {(sources.length > 0 || needsInput) && (
-            <div className="row">
-              {needsInput && <span className="badge warning">Needs input</span>}
-              {sources.map((source) => (
-                <span key={source} className="badge">
-                  {source}
-                </span>
-              ))}
-            </div>
-          )}
+          <div className="row">
+            {needsInput && <span className="badge warning">Needs input</span>}
+            <SourcesPopover sources={sources} />
+          </div>
         </div>
         <textarea
           className="generate-draft"

@@ -9,9 +9,11 @@ Side panel React UI. Opened from the toolbar action (`sidePanel.setPanelBehavior
 | `index.html` / `main.tsx` | Vite entry |
 | `SidePanel.tsx` | Scan, question list, footer |
 | `PageContextCard.tsx` | Collapsible card showing what the scan picked up, including the full JD text |
-| `QuestionCard.tsx` | Per-question accordion: draft textarea, generate / fill / save / export |
-| `ExportMenu.tsx` | Ghost button + popover: copy to clipboard, download `.md`, download `.txt` |
-| `export.ts` | Pure Markdown / plain-text builders, filename slugs, blob download, clipboard |
+| `QuestionCard.tsx` | Per-question accordion: draft textarea, collapsible extra instructions, generate / fill / copy / export |
+| `CopyButton.tsx` | Copies the current answer, with transient "Copied" feedback |
+| `ExportMenu.tsx` | Ghost button + popover: download the cover letter as PDF or `.tex` |
+| `cover-letter.ts` | Reads the letterhead (resolving a blank name via the background) and calls the document builder |
+| `export.ts` | Filename slugs, blob download for text or bytes, clipboard |
 | `useDrafts.ts` | Draft map keyed by `fieldId`; wraps background messages |
 | `sidepanel.css` | Panel layout |
 
@@ -20,7 +22,7 @@ Shared theme tokens come from `ui/theme.css`.
 ## State model
 
 - **Scan** — `PageScan | null` from `bg:scanActiveTab` (includes `frameId`)
-- **Drafts** — `Record<fieldId, DraftState>` via `useDrafts`
+- **Drafts** — `Record<fieldId, DraftState>` via `useDrafts`; `history` holds this session's attempts for the version stepper and the do-not-repeat list
 - **Expanded** — one open question card at a time
 
 `DraftState.status`: `idle` → `generating` → `ready` → `filled`.
@@ -32,17 +34,21 @@ There is no filter. Detection already drops everything Irke will not answer, so 
 ## User flows to preserve
 
 1. Mount / Rescan → clear drafts → list questions → expand the first one.
-2. Generate → background pipeline → show sources + `[NEED INPUT]` badge when present.
-3. Fill → `bg:fill` with the scan's `frameId` (critical for iframe ATS forms).
-4. Save → answer bank for that question label + company.
-5. Export → one question, or the whole application from the header. Everything is built in the panel from state it already holds; no new background messages.
+2. Generate → background pipeline → show sources + `[NEED INPUT]` badge when present. Anything typed into **Extra instructions** on the card rides along as `steer` and is added to the standing instructions, not swapped for them. It lives in `DraftState.steer`, so it survives collapsing the card and applies to every regenerate until the next scan.
+3. Regenerate → once a draft exists the button sends `regenerate: true` with `previousAnswers`: every attempt in `DraftState.history` plus whatever is on screen. The background rotates retrieval by that count and forbids all of them, so each click is regrounded and reworded rather than rephrased. Attempts are never discarded — the card shows **Version n of m** with ‹ › to page back through them, and a hand-edited draft (matching no version) reads **Edited** with ‹ returning to the newest. The answer bank keeps the same history in `AnswerBankEntry.versions`.
+4. Fill → `bg:fill` with the scan's `frameId` (critical for iframe ATS forms).
+5. Edit → blurring the textarea banks the edited draft (`commit`). There is no Save button: `bg:generate` already banks its own output, and `DraftState.savedValue` keeps an untouched draft from being rewritten.
+6. Copy → the bare answer for that question, for pasting into the form yourself.
+7. Export → cover letters only: a PDF or the `moderncv` `.tex` source, built in the panel from `lib/documents/cover-letter.ts`.
+
+A question whose `control` is `'file'` has no **Fill field** button — there is nothing to type into. Export the PDF and attach it yourself; that is the only route for an upload.
 
 Footer copy: **"Irke never submits for you"** — keep that invariant in UX and code.
 
 ## Conventions
 
 - Talk to the page only through `sendToBackground` — never `chrome.tabs` from the panel.
-- Keep generation / retrieval / LLM out of this folder; the panel is a thin client.
+- Keep generation / retrieval / LLM out of this folder; the panel is a thin client. Document typesetting is the exception: it is pure and runs where the download happens.
 - Prefer existing button classes (`primary`, `ghost`, `danger`) and badges from `theme.css`.
 - Functional components + hooks only; colocate draft logic in `useDrafts`.
 
@@ -50,6 +56,8 @@ Footer copy: **"Irke never submits for you"** — keep that invariant in UX and 
 
 - After extension reload, the content script is gone until the tab is refreshed — surface the background's "reload the tab" error as-is.
 - `scan` can be null; guard `frameId` / `job` before fill/save (already done — keep it that way).
-- Save answer indexes a prior draft; generation always calls the LLM (no answer-bank paste).
-- `.question-card` sets `overflow: hidden`, so the per-question export popover opens upward. A downward menu is clipped.
-- Export falls back to `question.currentValue` when there is no draft, so text the user typed on the page is not silently dropped.
+- Saving indexes a prior draft; generation always calls the LLM (no answer-bank paste).
+- `commit` runs on blur, so an edit made and then abandoned without leaving the textarea is not banked.
+- `.question-card` deliberately does **not** clip its overflow, so the sources popover in the tag row can open past the card edge. `.question-head` carries its own top radius to keep the hover fill inside the rounded border; do not reintroduce `overflow: hidden`.
+- Copy and export fall back to `question.currentValue` when there is no draft (`resolveAnswer`), so text the user typed on the page is not silently dropped.
+- Building a PDF is async and may hit the background for the letterhead name; the menu shows **Building…** and swallows nothing — a failure surfaces as **Export failed**.

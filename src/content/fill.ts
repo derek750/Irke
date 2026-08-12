@@ -1,4 +1,4 @@
-import { FIELD_ID_ATTRIBUTE } from './detect'
+import { FIELD_ID_ATTRIBUTE, isUpload } from './detect'
 
 type FormControl = HTMLInputElement | HTMLTextAreaElement
 
@@ -7,6 +7,9 @@ const HIGHLIGHT_DURATION_MS = 1600
 export function fillField(fieldId: string, value: string): void {
   const control = findControl(fieldId)
   if (!control) throw new Error('That field is no longer on the page. Rescan and try again.')
+  if (isUpload(control)) {
+    throw new Error('That field takes a file. Download the PDF and attach it yourself.')
+  }
 
   setText(control, value)
   scrollTo(control)

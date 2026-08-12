@@ -17,6 +17,8 @@ Shared code lives under `lib/` and `ui/`. UI surfaces are React 19 + Vite; backg
 
 Irke answers **story questions only** — cover letters, "tell us about a time", "why this company", "what are you proud of". It deliberately does not touch name, email, phone, salary, start date, work authorization, or demographics. There is no profile and no autofill of specifics. `content/detect.ts` drops those fields before they ever reach the UI.
 
+A cover-letter **file upload** counts as a story question, since Irke can typeset that document (`lib/documents/cover-letter.ts`). It carries `control: 'file'`, which means draft and export it but never write to it. Contact details for the letterhead live in Settings and are used only to typeset the document — never typed into a form.
+
 ## Message protocol
 
 All cross-context messages are typed in `lib/messages.ts`:
@@ -37,8 +39,10 @@ When adding a message type:
 Generation (`background/generate.ts`) always drafts via the LLM over retrieved context.
 Saved answers are **not** pasted back as-is.
 
-When the user saves an answer, it is stored in the answer bank **and** mirrored into the
-context index as `source: 'generated'` (`[PRIOR DRAFT]`). Those chunks only enter retrieval
+Every generated answer is stored in the answer bank **and** mirrored into the context index
+as `source: 'generated'` (`[PRIOR DRAFT]`); editing a draft re-banks it on blur. Regenerating appends to
+`AnswerBankEntry.versions` rather than overwriting, so no attempt is lost to another click, but only the
+current answer is mirrored into the index. Those chunks only enter retrieval
 when Settings.`includeGeneratedInRag` is on (off by default). Embeddings still require a
 manual **Build index** on the Data tab.
 
@@ -46,7 +50,7 @@ manual **Build index** on the Data tab.
 
 | Store | API | Contents |
 |-------|-----|----------|
-| `chrome.storage.local` | `lib/settings.ts` | Settings (provider, API key, model, temperature, generation mode, includeGeneratedInRag, extra instructions) |
+| `chrome.storage.local` | `lib/settings.ts` | Settings (provider, API key, model, temperature, generation mode, includeGeneratedInRag, extra instructions, letterhead) |
 | `chrome.storage.local` | `lib/connections.ts` | Drive folder + GitHub OAuth session / repo selection |
 | IndexedDB `irke` | `lib/db.ts` | Context docs, chunks, answer-bank entries |
 

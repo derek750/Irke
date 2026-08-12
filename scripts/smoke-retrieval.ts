@@ -97,6 +97,66 @@ if (hybrid[0].chunk.docId !== 'story-migration') {
 }
 console.log(`  ok  top hit is ${hybrid[0].chunk.docTitle} (RRF score ${hybrid[0].score.toFixed(4)})`)
 
+// Regenerating has to reground: same query, same top-8 excerpts, same answer back.
+const poolDocs: ContextDoc[] = Array.from({ length: 24 }, (_, index) => ({
+  id: `pool-${index}`,
+  source: 'story',
+  title: `Payments story ${index}`,
+  createdAt: index,
+  text: `A payments reconciliation project I worked on. ${'Extra detail. '.repeat(index + 1)}`,
+}))
+const poolChunks = poolDocs.flatMap(chunkDoc)
+
+const ids = (results: ReturnType<typeof retrieve>) => results.map((entry) => entry.chunk.id)
+const windows = [0, 1, 2].map((rotate) =>
+  ids(retrieve('payments reconciliation project', poolChunks, { limit: 8, rotate })),
+)
+
+console.log('\nRotation (regenerate regrounds on the rest of the pool)')
+for (const [rotate, window] of windows.entries()) {
+  if (window.length !== 8) {
+    console.error(`FAIL: rotate ${rotate} returned ${window.length} chunks, expected 8`)
+    process.exit(1)
+  }
+  if (new Set(window).size !== window.length) {
+    console.error(`FAIL: rotate ${rotate} returned the same chunk twice`)
+    process.exit(1)
+  }
+}
+
+const anchors = windows.map((window) => window.slice(0, 2).join('|'))
+if (new Set(anchors).size !== 1) {
+  console.error(`FAIL: top hits should survive every rotation, got ${anchors.join(' vs ')}`)
+  process.exit(1)
+}
+console.log(`  ok  top 2 hits anchor every rotation (${windows[0].slice(0, 2).join(', ')})`)
+
+const tails = windows.map((window) => new Set(window.slice(2)))
+for (const [left, right] of [
+  [0, 1],
+  [0, 2],
+  [1, 2],
+] as const) {
+  const shared = [...tails[left]].filter((id) => tails[right].has(id))
+  if (shared.length) {
+    console.error(`FAIL: rotate ${left} and ${right} share ${shared.length} excerpts`)
+    process.exit(1)
+  }
+}
+console.log('  ok  rotations 0, 1 and 2 read entirely different supporting excerpts')
+
+// Wrapping and tiny corpora both have to degrade quietly rather than return nothing.
+if (ids(retrieve('payments reconciliation project', poolChunks, { limit: 8, rotate: 3 })).join() !== windows[0].join()) {
+  console.error('FAIL: rotation should wrap back to the first window once the pool runs out')
+  process.exit(1)
+}
+const tiny = retrieve('payments', chunks, { limit: 3, rotate: 7 })
+if (tiny.length !== 3) {
+  console.error(`FAIL: rotating a tiny corpus returned ${tiny.length} chunks, expected 3`)
+  process.exit(1)
+}
+console.log('  ok  rotation wraps, and a corpus smaller than the window is left alone')
+
 const self = cosineSimilarity(axes.leadership, axes.leadership)
 if (Math.abs(self - 1) > 1e-9) {
   console.error(`FAIL: cosine self-similarity expected 1, got ${self}`)

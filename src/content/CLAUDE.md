@@ -20,7 +20,9 @@ Content scripts injected into every frame (`all_frames: true`, `document_idle`).
 
 Irke detects **story questions only**: cover letters, "tell us about a time", "why this company". Everything else on an application form — name, email, salary, work authorization, demographics — is deliberately ignored, because Irke has no profile to answer them from and guessing is the failure mode this design exists to avoid.
 
-Eligible controls: visible `textarea`, and visible `input[type=text]`. Skip disabled / readonly / aria-hidden. Selects, radios, and checkboxes are never detected — a story does not fit in one.
+Eligible controls: visible `textarea`, visible `input[type=text]`, and `input[type=file]` **labelled as a cover letter**. Skip disabled / readonly / aria-hidden. Selects, radios, and checkboxes are never detected — a story does not fit in one.
+
+A cover-letter upload is detected because Irke can typeset that document itself; resume, transcript, and portfolio uploads are somebody else's file and stay invisible. Uploads carry `control: 'file'` on `DetectedQuestion`, which means draft it, export it, never write to it — `fillField` throws if asked. ATS upload widgets hide the real input behind a styled button, so visibility is judged on the nearest visible ancestor (up to four levels) rather than the input.
 
 Classification lives in `classifyLabel` and `classify`:
 
@@ -29,6 +31,7 @@ Classification lives in `classifyLabel` and `classify`:
 3. A `textarea` with no topic match still counts as `open_ended` — the control type is signal enough
 4. A bare text input needs an explicit topic match; `open_ended` is too loose there
 5. A `textarea` with `maxLength` under 120 is a one-liner, not a story
+6. A file input needs `cover_letter` exactly; any other topic, or none, is rejected
 
 **Hard denylist** (never detect, never fill) — `BLOCKED_PATTERN`:
 
@@ -52,6 +55,7 @@ npm run smoke:detect
 
 - Write via the native `value` setter, then dispatch `input` + `change` (required for React / Vue controlled inputs).
 - Always scroll into view and flash outline; never click Submit.
+- File inputs are never written to; the side panel hides **Fill field** for them and the user attaches the downloaded PDF.
 
 ## ATS adapters
 

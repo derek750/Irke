@@ -44,7 +44,6 @@
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  overflow: hidden;
 }
 
 .question-card.filled {
@@ -59,7 +58,8 @@
   width: 100%;
   background: none;
   border: none;
-  border-radius: 0;
+  /* Matches the card so the hover fill does not square off the top corners. */
+  border-radius: calc(var(--radius) - 1px) calc(var(--radius) - 1px) 0 0;
   text-align: left;
   color: inherit;
 }
@@ -132,19 +132,60 @@
   color: var(--text-muted);
 }
 
-.export-menu {
-  position: relative;
+/* Sits above the draft it pages through, out of the way of the action row. */
+.versions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px;
+  margin-bottom: -4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.versions button {
+  padding: 0 6px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.steer {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.steer-toggle {
   display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  gap: 6px;
+  padding: 3px 6px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.steer-toggle .chevron {
+  margin-top: 0;
+}
+
+/* The shared textarea rule sizes for an answer; a nudge is a line or two. */
+.steer textarea {
+  min-height: 0;
+  font-size: 12px;
 }
 
 /* Flush right on whatever line it wraps onto, so the popover never leaves the card. */
-.question-actions .export-menu {
+.export-menu {
+  position: relative;
+  display: inline-flex;
   margin-left: auto;
 }
 
+/* Opens upward: the trigger sits at the bottom of a card, often near the panel's bottom edge. */
 .export-menu-items {
   position: absolute;
-  top: calc(100% + 4px);
+  bottom: calc(100% + 4px);
   right: 0;
   z-index: 20;
   min-width: 168px;
@@ -156,12 +197,6 @@
   border-radius: var(--radius);
   background: var(--surface-raised);
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
-}
-
-/* Question cards clip their overflow, so their menu opens upward into the card. */
-.question-actions .export-menu-items {
-  top: auto;
-  bottom: calc(100% + 4px);
 }
 
 .export-menu-items button {
@@ -184,10 +219,6 @@
   margin-top: 3px;
 }
 
-.sources {
-  font-size: 11px;
-  color: var(--text-muted);
-}
 
 .panel-footer {
   border-top: 1px solid var(--border);

@@ -4,6 +4,13 @@ import type { StoryTopic } from '../src/lib/types.ts'
 /** Labels lifted from real Greenhouse / Lever / Workday / Ashby forms. */
 const cases: [label: string, expected: StoryTopic | null][] = [
   ['Cover letter', 'cover_letter'],
+  // Upload widgets label themselves like this. Only the cover letter is Irke's to produce;
+  // the control type is checked separately in `classify`, which needs a DOM.
+  ['Cover Letter (optional)', 'cover_letter'],
+  ['Attach a cover letter', 'cover_letter'],
+  ['Resume/CV', null],
+  ['Upload your resume', null],
+  ['Unofficial transcript', null],
   ['Why do you want to work at Acme?', 'why_company'],
   ['What excites you about our mission?', 'why_company'],
   ['Why are you interested in this role?', 'why_role'],

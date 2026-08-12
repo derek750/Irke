@@ -1,28 +1,32 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-import { copyText, downloadText, type ExportFormat } from './export'
+import { downloadFile, type ExportFormat } from './export'
 
-const FEEDBACK_MS = 1500
+const FEEDBACK_MS = 2000
+
+const FORMAT_LABELS: Record<ExportFormat, string> = {
+  pdf: 'Download PDF',
+  tex: 'Download .tex',
+}
 
 interface ExportMenuProps {
   label: string
   disabled?: boolean
   /** Built on click rather than on render, so the file always holds the latest draft text. */
-  build: (format: ExportFormat) => { filename: string; text: string }
-  /** Overrides what Copy puts on the clipboard; defaults to the plain-text document. */
-  copyValue?: () => string
+  build: (format: ExportFormat) => Promise<{ filename: string; data: string | Uint8Array }>
 }
 
-export function ExportMenu({ label, disabled, build, copyValue }: ExportMenuProps) {
+export function ExportMenu({ label, disabled, build }: ExportMenuProps) {
   const [open, setOpen] = useState(false)
-  const [feedback, setFeedback] = useState<'copied' | 'failed' | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [failed, setFailed] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const timerRef = useRef<number | undefined>(undefined)
 
-  const flash = useCallback((next: 'copied' | 'failed') => {
-    setFeedback(next)
+  const flashFailure = useCallback(() => {
+    setFailed(true)
     window.clearTimeout(timerRef.current)
-    timerRef.current = window.setTimeout(() => setFeedback(null), FEEDBACK_MS)
+    timerRef.current = window.setTimeout(() => setFailed(false), FEEDBACK_MS)
   }, [])
 
   useEffect(() => () => window.clearTimeout(timerRef.current), [])
@@ -45,37 +49,40 @@ export function ExportMenu({ label, disabled, build, copyValue }: ExportMenuProp
     }
   }, [open])
 
-  const onCopy = async () => {
+  const onDownload = async (format: ExportFormat) => {
     setOpen(false)
-    const text = copyValue ? copyValue() : build('txt').text
-    flash((await copyText(text)) ? 'copied' : 'failed')
-  }
-
-  const onDownload = (format: ExportFormat) => {
-    setOpen(false)
-    const { filename, text } = build(format)
-    downloadText(filename, text)
+    setBusy(true)
+    try {
+      const { filename, data } = await build(format)
+      downloadFile(filename, data, format)
+    } catch {
+      flashFailure()
+    } finally {
+      setBusy(false)
+    }
   }
 
   return (
     <div className="export-menu" ref={containerRef}>
       <button
         className="ghost"
-        disabled={disabled}
+        disabled={disabled || busy}
         aria-haspopup="true"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >
-        {feedback === 'copied' ? 'Copied' : feedback === 'failed' ? 'Copy failed' : `${label} ▾`}
+        {busy ? 'Building…' : failed ? 'Export failed' : `${label} ▾`}
       </button>
 
       {/* Plain buttons rather than role="menu": Tab already reaches them, and the arrow-key
           navigation a menu role promises is not implemented. */}
       {open && (
         <div className="export-menu-items">
-          <button onClick={onCopy}>Copy to clipboard</button>
-          <button onClick={() => onDownload('md')}>Download .md</button>
-          <button onClick={() => onDownload('txt')}>Download .txt</button>
+          {(Object.keys(FORMAT_LABELS) as ExportFormat[]).map((format) => (
+            <button key={format} onClick={() => onDownload(format)}>
+              {FORMAT_LABELS[format]}
+            </button>
+          ))}
         </div>
       )}
     </div>

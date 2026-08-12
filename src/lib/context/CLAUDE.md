@@ -42,13 +42,15 @@ Tags go into the chunk text so the model knows what it is reading. Boosts favor 
 
 ## Retrieval
 
-`retrieve(query, chunks, { limit, minScore, queryEmbedding, includeGenerated })`:
+`retrieve(query, chunks, { limit, minScore, queryEmbedding, includeGenerated, rotate })`:
 
 - When `includeGenerated` is false (default), drop `source: 'generated'` before scoring
 - Always score with BM25 (`K1=1.5`, `B=0.75`) × source boost
 - When `queryEmbedding` is set and chunks have vectors: cosine × boost, then reciprocal rank fusion (RRF) with BM25
 - Drop BM25 scores ≤ `minScore` (default `0.01`); drop cosine &lt; `0.2`
-- Return top `limit` (default 8)
+- Return top `limit` (default 8), windowed by `rotate`
+
+Each channel ranks `CANDIDATE_POOL` (20) candidates and the window takes `limit` of them. `rotate` is the regenerate count: it keeps the top `ANCHORS` (2) and walks the remaining slots that many steps down the pool, wrapping at the end. That is what makes a regenerate say something new instead of rephrasing the same excerpts — with `limit: 8` the first pass reads ranks 1-8 and the first retry reads 1-2 plus 9-14. A pool no bigger than the window is returned unrotated.
 
 Empty query or empty corpus → `[]`. Callers must handle "no excerpts" (the prompt has a fallback that tells the model to mark facts as `[NEED INPUT]` rather than invent a story).
 

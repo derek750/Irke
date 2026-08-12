@@ -1,5 +1,10 @@
+import { useState } from 'react'
+
 import type { DetectedQuestion, JobContext, StoryTopic } from '@/lib/types'
-import { buildExport, exportFilename, toExportEntry, type ExportFormat } from './export'
+import { SourcesPopover } from '@/ui/SourcesPopover'
+import { CopyButton } from './CopyButton'
+import { buildCoverLetterFile } from './cover-letter'
+import { resolveAnswer, type ExportFormat } from './export'
 import { ExportMenu } from './ExportMenu'
 import type { DraftState } from './useDrafts'
 
@@ -24,9 +29,13 @@ interface QuestionCardProps {
   expanded: boolean
   onToggle: () => void
   onChange: (value: string) => void
+  onSteerChange: (value: string) => void
   onGenerate: (regenerate: boolean) => void
+  /** Swaps the textarea to an earlier attempt from this session. */
+  onShowVersion: (index: number) => void
   onFill: () => void
-  onSave: () => void
+  /** Banks an edited draft; the generated text is already saved by the pipeline. */
+  onCommit: () => void
 }
 
 export function QuestionCard({
@@ -36,19 +45,29 @@ export function QuestionCard({
   expanded,
   onToggle,
   onChange,
+  onSteerChange,
   onGenerate,
+  onShowVersion,
   onFill,
-  onSave,
+  onCommit,
 }: QuestionCardProps) {
+  const [steerOpen, setSteerOpen] = useState(false)
   const value = draft?.value ?? ''
+  const steer = draft?.steer ?? ''
   const isBusy = draft?.status === 'generating'
   const hasDraft = value.trim().length > 0
-  const entry = toExportEntry(question, value)
+  const isUpload = question.control === 'file'
+  const answer = resolveAnswer(question, value)
 
-  const buildFile = (format: ExportFormat) => ({
-    filename: exportFilename(format, job, question.label),
-    text: buildExport(format, job, [entry]),
-  })
+  // Regenerating keeps every attempt rather than replacing the last, so the card needs a way back
+  // to them. A hand-edited draft matches no version — stepping back returns to the newest one.
+  const history = draft?.history ?? []
+  const versionIndex = history.indexOf(value)
+  const isEdited = versionIndex === -1
+  const previousIndex = isEdited ? history.length - 1 : versionIndex - 1
+  const nextIndex = isEdited ? -1 : versionIndex + 1
+
+  const buildFile = (format: ExportFormat) => buildCoverLetterFile(job, answer, format)
 
   return (
     <article className={`question-card${draft?.status === 'filled' ? ' filled' : ''}`}>
@@ -64,39 +83,77 @@ export function QuestionCard({
         {question.maxLength && <span className="badge">{question.maxLength} char max</span>}
         {draft?.source && <span className="badge accent">{DRAFT_SOURCE_LABELS[draft.source]}</span>}
         {draft?.needsInput && <span className="badge warning">Needs your input</span>}
+        <SourcesPopover sources={draft?.sources ?? []} />
       </div>
 
       {expanded && (
         <div className="question-body">
+          {(history.length > 1 || (history.length === 1 && isEdited)) && (
+            <div className="versions">
+              <button
+                className="ghost"
+                aria-label="Previous version"
+                disabled={previousIndex < 0}
+                onClick={() => onShowVersion(previousIndex)}
+              >
+                ‹
+              </button>
+              <span>{isEdited ? 'Edited' : `Version ${versionIndex + 1} of ${history.length}`}</span>
+              <button
+                className="ghost"
+                aria-label="Next version"
+                disabled={nextIndex < 0 || nextIndex >= history.length}
+                onClick={() => onShowVersion(nextIndex)}
+              >
+                ›
+              </button>
+            </div>
+          )}
+
           <textarea
             value={value}
             placeholder={isBusy ? 'Drafting…' : 'Generate a draft, or write your answer here.'}
             onChange={(event) => onChange(event.target.value)}
+            onBlur={onCommit}
             rows={question.topic === 'cover_letter' ? 12 : 7}
           />
 
+          <div className="steer">
+            <button
+              className="ghost steer-toggle"
+              onClick={() => setSteerOpen(!steerOpen)}
+              aria-expanded={steerOpen}
+            >
+              <span className="chevron">{steerOpen ? '▾' : '▸'}</span>
+              Extra instructions
+              {!steerOpen && Boolean(steer.trim()) && <span className="badge accent">on</span>}
+            </button>
+
+            {steerOpen && (
+              <textarea
+                value={steer}
+                rows={2}
+                placeholder="Lead with the payments migration. Keep it under 150 words."
+                onChange={(event) => onSteerChange(event.target.value)}
+              />
+            )}
+          </div>
+
           {draft?.error && <div className="notice error">{draft.error}</div>}
 
-          {draft?.sources?.length ? (
-            <p className="sources">Grounded in: {draft.sources.join(', ')}</p>
-          ) : null}
-
           <div className="question-actions">
-            <button className="primary" disabled={isBusy} onClick={() => onGenerate(false)}>
+            <button className="primary" disabled={isBusy} onClick={() => onGenerate(hasDraft)}>
               {isBusy ? 'Drafting…' : hasDraft ? 'Regenerate' : 'Generate'}
             </button>
-            <button disabled={!hasDraft || isBusy} onClick={onFill}>
-              Fill field
-            </button>
-            <button className="ghost" disabled={!hasDraft || isBusy} onClick={onSave}>
-              Save answer
-            </button>
-            <ExportMenu
-              label="Export"
-              disabled={!entry.answer || isBusy}
-              build={buildFile}
-              copyValue={() => entry.answer}
-            />
+            {!isUpload && (
+              <button disabled={!hasDraft || isBusy} onClick={onFill}>
+                Fill field
+              </button>
+            )}
+            <CopyButton value={() => answer} disabled={!answer || isBusy} />
+            {question.topic === 'cover_letter' && (
+              <ExportMenu label="Export" disabled={!answer || isBusy} build={buildFile} />
+            )}
           </div>
         </div>
       )}

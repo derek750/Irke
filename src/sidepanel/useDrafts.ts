@@ -10,6 +10,12 @@ export interface DraftState {
   sources: string[]
   needsInput: boolean
   error: string | null
+  /** What the answer bank already holds, so an untouched draft is never rewritten. */
+  savedValue: string | null
+  /** Optional per-question nudge, added to the standing instructions on every generate. */
+  steer: string
+  /** Every answer generated for this field this session, oldest first. Regenerating appends. */
+  history: string[]
 }
 
 const EMPTY_DRAFT: DraftState = {
@@ -19,6 +25,9 @@ const EMPTY_DRAFT: DraftState = {
   sources: [],
   needsInput: false,
   error: null,
+  savedValue: null,
+  steer: '',
+  history: [],
 }
 
 export function useDrafts() {
@@ -38,11 +47,28 @@ export function useDrafts() {
     [patch],
   )
 
+  const setSteer = useCallback(
+    (fieldId: string, steer: string) => patch(fieldId, { steer }),
+    [patch],
+  )
+
   const generate = useCallback(
     async (job: JobContext, question: DetectedQuestion, regenerate: boolean) => {
       patch(question.fieldId, { status: 'generating', error: null })
 
-      const response = await sendToBackground({ type: 'bg:generate', job, question, regenerate })
+      const draft = drafts[question.fieldId]
+      // Everything already seen for this field: the generated attempts plus any hand edit on top
+      // of the last one. All of it is off the table for the retry.
+      const rejected = regenerate ? [...(draft?.history ?? []), draft?.value ?? ''] : []
+
+      const response = await sendToBackground({
+        type: 'bg:generate',
+        job,
+        question,
+        regenerate,
+        steer: draft?.steer.trim() || undefined,
+        previousAnswers: rejected.length ? rejected : undefined,
+      })
       if (!response.ok) {
         patch(question.fieldId, { status: 'idle', error: response.error })
         return
@@ -50,6 +76,7 @@ export function useDrafts() {
       if (response.type !== 'generate') return
 
       const { result } = response
+      const history = [...(draft?.history ?? []).filter((entry) => entry !== result.answer), result.answer]
       patch(question.fieldId, {
         value: result.answer,
         status: 'ready',
@@ -57,9 +84,21 @@ export function useDrafts() {
         sources: result.sources,
         needsInput: result.needsInput,
         error: null,
+        // The generate pipeline banks its own output, so this is already stored.
+        savedValue: result.answer,
+        history,
       })
     },
-    [patch],
+    [drafts, patch],
+  )
+
+  /** Flip back to an earlier attempt. The answer bank kept them all; this is how they are reached. */
+  const showVersion = useCallback(
+    (fieldId: string, index: number) => {
+      const value = drafts[fieldId]?.history[index]
+      if (value !== undefined) patch(fieldId, { value, status: 'ready', error: null })
+    },
+    [drafts, patch],
   )
 
   const fill = useCallback(
@@ -73,21 +112,28 @@ export function useDrafts() {
     [drafts, patch],
   )
 
-  const save = useCallback(
+  /**
+   * Banks whatever the user has ended up with. Generation already saves its own output, so this
+   * only has work to do once a draft has been edited by hand.
+   */
+  const commit = useCallback(
     async (question: DetectedQuestion, company: string) => {
-      const value = drafts[question.fieldId]?.value ?? ''
-      if (!value.trim()) return
+      const draft = drafts[question.fieldId]
+      if (!draft?.value.trim() || draft.value === draft.savedValue) return
 
       const response = await sendToBackground({
         type: 'bg:saveAnswer',
         question: question.label,
-        answer: value,
+        answer: draft.value,
         company,
       })
-      if (!response.ok) patch(question.fieldId, { error: response.error })
+      patch(
+        question.fieldId,
+        response.ok ? { savedValue: draft.value } : { error: response.error },
+      )
     },
     [drafts, patch],
   )
 
-  return { drafts, setValue, generate, fill, save, reset }
+  return { drafts, setValue, setSteer, generate, showVersion, fill, commit, reset }
 }
