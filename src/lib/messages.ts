@@ -24,12 +24,19 @@ export type BackgroundRequest =
       /**
        * Answers already rejected for this question, oldest first. Sets both the retrieval
        * rotation and the do-not-repeat list, so each retry is new material and new wording.
+       * Ignored when `currentDraft` is set — a refine has no rejected answers.
        */
       previousAnswers?: string[]
       /** When set, overrides Settings.extraInstructions for this call only. */
       extraInstructions?: string
       /** Added on top of whatever instructions apply, to steer this one answer. */
       steer?: string
+      /**
+       * Text the user wrote or edited themselves, sent when they regenerate over it. The
+       * pipeline treats it as the base to build on — kept facts, kept story, normal temperature
+       * — never as an attempt to avoid.
+       */
+      currentDraft?: string
     }
   | { type: 'bg:fill'; fieldId: string; value: string; frameId: number }
   | { type: 'bg:saveAnswer'; question: string; answer: string; company: string }

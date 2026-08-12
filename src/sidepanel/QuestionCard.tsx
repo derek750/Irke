@@ -83,7 +83,15 @@ export function QuestionCard({
         {question.maxLength && <span className="badge">{question.maxLength} char max</span>}
         {draft?.source && <span className="badge accent">{DRAFT_SOURCE_LABELS[draft.source]}</span>}
         {draft?.needsInput && <span className="badge warning">Needs your input</span>}
-        <SourcesPopover sources={draft?.sources ?? []} />
+        {draft?.degraded && (
+          <span
+            className="badge"
+            title="The semantic index couldn't be reached for this draft, so it was grounded by keyword match alone. Regenerate to retry."
+          >
+            Keyword only
+          </span>
+        )}
+        <SourcesPopover sources={draft?.sources ?? []} steered={draft?.steeredSources ?? []} />
       </div>
 
       {expanded && (
@@ -133,7 +141,7 @@ export function QuestionCard({
               <textarea
                 value={steer}
                 rows={2}
-                placeholder="Lead with the payments migration. Keep it under 150 words."
+                placeholder="Focus on the robotics project. Keep it under 150 words."
                 onChange={(event) => onSteerChange(event.target.value)}
               />
             )}
@@ -142,8 +150,9 @@ export function QuestionCard({
           {draft?.error && <div className="notice error">{draft.error}</div>}
 
           <div className="question-actions">
+            {/* An edited draft is refined (built on), an untouched one is regenerated (replaced). */}
             <button className="primary" disabled={isBusy} onClick={() => onGenerate(hasDraft)}>
-              {isBusy ? 'Drafting…' : hasDraft ? 'Regenerate' : 'Generate'}
+              {isBusy ? 'Drafting…' : hasDraft ? (isEdited ? 'Refine' : 'Regenerate') : 'Generate'}
             </button>
             {!isUpload && (
               <button disabled={!hasDraft || isBusy} onClick={onFill}>

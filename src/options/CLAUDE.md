@@ -47,7 +47,9 @@ Four ways in, all landing in the same index via `saveDoc` (`putDoc` + `replaceCh
 
 Connection syncs go through `replaceDocsForSource`, which clears that source first. Never leave orphan chunks. Synced docs show up on the Data tab Indexed list.
 
-**Build index** (on the Data tab Indexed list) calls `buildContextIndex()` to embed chunks via OpenAI or OpenRouter and store vectors on IndexedDB chunks. Requires AI provider set to OpenAI or OpenRouter. The **Generate** tab calls `bg:generate` for a dry-run draft (chat completion, not embeddings).
+**Embedding upkeep is automatic**: adding a story, uploading a file, and finishing a Drive or GitHub sync each fire `ensureContextEmbeddings()` (best-effort, quiet on failure or a non-embedding provider), so vectors exist without a manual step. The Data tab shows coverage as a `hint` line ("Semantic index: N of M excerpts embedded"). **Build context** calls `buildContextIndex()` directly with visible progress/errors — the backfill for old corpora and the manual rebuild. Both need the AI provider set to OpenAI or OpenRouter. The **Generate** tab calls `bg:generate` for a dry-run draft (chat completion, not embeddings).
+
+**Distill stories** calls `distillContext()`: one chat call per document (any provider, including Anthropic) that condenses it into typed story cards indexed under `source: 'distilled'` — that is what lets "tell us about a conflict" find a story that never says "conflict". Deliberately manual because it costs a model call per document; the button's title says so. Fresh notes are skipped, stale ones (re-synced parents) redone, orphaned ones pruned. Deleting a document on this tab also deletes its notes; a sync that drops a document leaves its notes to be pruned on the next distill run. After distilling, the handler fires the auto-embed so the new cards get vectors.
 
 ## Google Drive / GitHub setup
 

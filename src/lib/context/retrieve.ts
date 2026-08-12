@@ -1,15 +1,44 @@
 import type { ContextChunk, ContextSource, RetrievedChunk } from '../types'
-import { tokenize } from './tokenize'
+import { distilledParentId } from './chunk'
+import { termVariants, tokenize } from './tokenize'
 
 const K1 = 1.5
 const B = 0.75
 const RRF_K = 60
+/**
+ * When both channels run, a chunk the vector channel ranked high beats one the keyword channel
+ * ranked equally high. The questions are natural-language paraphrase — semantic similarity is
+ * the signal that understands them — while BM25 is the cold-start fallback and the catcher of
+ * rare literal tokens (project names, tools). Modest on purpose: RRF still rewards consensus,
+ * and an exact keyword hit near the top still makes the window.
+ */
+const VECTOR_RRF_WEIGHT = 1.5
 /** How many candidates each channel contributes before fusion. */
 const CANDIDATE_POOL = 20
 /** Drop weak cosine matches before RRF (OpenAI embeddings are roughly unit-normalized). */
 const MIN_COSINE = 0.2
 /** Top hits every rotation keeps, so a regrounded retry still stands on the best evidence. */
 const ANCHORS = 2
+/** Keyword hits scoring under this share of the query's best hit are noise, not evidence. */
+const RELATIVE_FLOOR = 0.25
+/** One excerpt is too thin to write from, and leaves a regenerate nothing to reground on. */
+const MIN_RESULTS = 3
+/**
+ * A steer is searched on its own and its best hits are guaranteed the front of the window.
+ * It deliberately does not join the keyword query: scores are compared against the query's best
+ * hit (`RELATIVE_FLOOR`), so a steer naming rare terms becomes that best hit and the question's
+ * own evidence gets cut — measured at every weight tried, from 5 to 30. Reserved slots cost the
+ * tail of the window, never the head. The embed query does carry the steer; rank fusion cannot
+ * starve the way score floors do.
+ */
+const STEER_PINS = 2
+/**
+ * What a morphological variant of a query term is worth relative to the exact word. Half keeps
+ * every exact match ahead of every stem match: swept 0.5 / 0.75 / 1.0 on the probe corpus and
+ * 0.5 was the only setting that fixed the paraphrase misses ("disagreed" → the story titled
+ * "Disagreement") without flipping the top hit of any query that already worked.
+ */
+const VARIANT_DISCOUNT = 0.5
 
 /** Deliberately written stories beat incidental material scraped from Drive or a repo. */
 const SOURCE_BOOST: Record<ContextSource, number> = {
@@ -19,7 +48,26 @@ const SOURCE_BOOST: Record<ContextSource, number> = {
   github: 1,
   /** Prior drafts are memory, not primary evidence — rank below human-authored sources. */
   generated: 0.85,
+  /**
+   * LLM-condensed search notes over the user's own material. Written to be found (typed story
+   * cards in question vocabulary), so they need no help ranking — swept 0.85-1.3 and the hit
+   * rate barely moved. Kept at document level, under human-written stories.
+   */
+  distilled: 1.15,
 }
+
+export interface QueryPart {
+  text: string
+  /** Multiplies what every term in this part contributes to a chunk's score. */
+  weight: number
+}
+
+/**
+ * A plain string weights every term equally. Use parts when some of the query matters more than
+ * the rest: a question label and 1200 characters of job description in one string is a search for
+ * the job description, because the label is a handful of terms against a hundred.
+ */
+export type Query = string | QueryPart[]
 
 interface RetrieveOptions {
   limit?: number
@@ -36,6 +84,13 @@ interface RetrieveOptions {
    * grounded in different excerpts — the same top-8 always produces the same answer.
    */
   rotate?: number
+  /**
+   * The user's per-answer direction ("focus on the CubeSat work"). Searched on its own; its top
+   * hits are pinned to the front of the window (marked `steered`) and survive rotation. A steer
+   * that names nothing in the index (tone or length asks) matches nothing and leaves retrieval
+   * untouched.
+   */
+  steer?: string
 }
 
 /**
@@ -43,7 +98,7 @@ interface RetrieveOptions {
  * BM25 alone when no embeddings; BM25 + cosine (RRF) when Build index has run.
  */
 export function retrieve(
-  query: string,
+  query: Query,
   chunks: ContextChunk[],
   {
     limit = 8,
@@ -51,12 +106,75 @@ export function retrieve(
     queryEmbedding,
     includeGenerated = false,
     rotate = 0,
+    steer,
   }: RetrieveOptions = {},
 ): RetrievedChunk[] {
   const corpus = includeGenerated ? chunks : chunks.filter((chunk) => chunk.source !== 'generated')
-  const bm25 = retrieveBm25(query, corpus, { limit: CANDIDATE_POOL, minScore })
 
-  return selectWindow(rank(queryEmbedding, corpus, bm25), limit, rotate)
+  const trimmedSteer = steer?.trim()
+  const pinned = trimmedSteer
+    ? retrieveBm25(trimmedSteer, corpus, { limit: Math.min(STEER_PINS, limit), minScore }).map(
+        (entry) => ({ ...entry, steered: true }),
+      )
+    : []
+
+  const bm25 = retrieveBm25(query, corpus, { limit: CANDIDATE_POOL, minScore })
+  const ranked = rank(queryEmbedding, corpus, bm25)
+
+  let window: RetrievedChunk[]
+  if (!pinned.length) {
+    window = selectWindow(ranked, limit, rotate)
+  } else {
+    const pinnedIds = new Set(pinned.map((entry) => entry.chunk.id))
+    const rest = ranked.filter((entry) => !pinnedIds.has(entry.chunk.id))
+    window = [...pinned, ...selectWindow(rest, Math.max(0, limit - pinned.length), rotate)]
+  }
+
+  return chainParents(window, ranked, corpus, limit)
+}
+
+/**
+ * Distilled notes are condensed for search, so they often outrank the document they condense —
+ * whose own vocabulary never matched the question. The card names the story; the original
+ * carries its texture. Every distilled hit therefore pulls its parent's best chunk in right
+ * behind it (the small-to-big pattern), and the tail of the window pays for it. A parent pulled
+ * in by a steered pin inherits the mark — it is there because the steer asked.
+ */
+function chainParents(
+  window: RetrievedChunk[],
+  ranked: RetrievedChunk[],
+  corpus: ContextChunk[],
+  limit: number,
+): RetrievedChunk[] {
+  const present = new Set(window.map((entry) => entry.chunk.docId))
+  const chained: RetrievedChunk[] = []
+
+  for (const entry of window) {
+    chained.push(entry)
+    if (entry.chunk.source !== 'distilled') continue
+
+    const parentId = distilledParentId(entry.chunk.docId)
+    if (!parentId || present.has(parentId)) continue
+
+    const parent =
+      ranked.find((candidate) => candidate.chunk.docId === parentId) ??
+      firstChunkOf(parentId, corpus)
+    if (!parent) continue
+
+    present.add(parentId)
+    chained.push(entry.steered ? { ...parent, steered: true } : parent)
+  }
+
+  return chained.slice(0, limit)
+}
+
+function firstChunkOf(docId: string, corpus: ContextChunk[]): RetrievedChunk | null {
+  const chunk = corpus.find((candidate) => candidate.docId === docId)
+  return chunk ? { chunk, score: 0 } : null
+}
+
+function toParts(query: Query): QueryPart[] {
+  return typeof query === 'string' ? [{ text: query, weight: 1 }] : query
 }
 
 function rank(
@@ -73,7 +191,10 @@ function rank(
   if (!vector.length) return bm25
   if (!bm25.length) return vector
 
-  return reciprocalRankFusion([bm25, vector])
+  return reciprocalRankFusion([
+    { list: bm25, weight: 1 },
+    { list: vector, weight: VECTOR_RRF_WEIGHT },
+  ])
 }
 
 /**
@@ -109,20 +230,20 @@ export function cosineSimilarity(a: number[], b: number[]): number {
 }
 
 function retrieveBm25(
-  query: string,
+  query: Query,
   chunks: ContextChunk[],
   { limit, minScore }: { limit: number; minScore: number },
 ): RetrievedChunk[] {
   if (!chunks.length) return []
 
-  const queryTerms = [...new Set(tokenize(query))]
-  if (!queryTerms.length) return []
+  const queryTerms = weighQueryTerms(query)
+  if (!queryTerms.size) return []
 
   const lengths = chunks.map((chunk) => sumValues(chunk.tokens))
   const averageLength = lengths.reduce((total, length) => total + length, 0) / chunks.length || 1
 
   const documentFrequency = new Map<string, number>()
-  for (const term of queryTerms) {
+  for (const term of queryTerms.keys()) {
     let count = 0
     for (const chunk of chunks) if (chunk.tokens[term]) count += 1
     documentFrequency.set(term, count)
@@ -130,22 +251,27 @@ function retrieveBm25(
 
   const scored = chunks.map((chunk, index) => {
     let score = 0
-    for (const term of queryTerms) {
+    for (const [term, weight] of queryTerms) {
       const frequency = chunk.tokens[term]
       if (!frequency) continue
 
       const df = documentFrequency.get(term) ?? 0
       const idf = Math.log(1 + (chunks.length - df + 0.5) / (df + 0.5))
       const normalization = K1 * (1 - B + (B * lengths[index]) / averageLength)
-      score += idf * ((frequency * (K1 + 1)) / (frequency + normalization))
+      score += weight * idf * ((frequency * (K1 + 1)) / (frequency + normalization))
     }
     return { chunk, score: score * SOURCE_BOOST[chunk.source] }
   })
 
-  return scored
-    .filter((entry) => entry.score > minScore)
-    .sort((a, b) => b.score - a.score)
-    .slice(0, limit)
+  const ranked = scored.filter((entry) => entry.score > minScore).sort((a, b) => b.score - a.score)
+
+  // `minScore` is an absolute floor, and almost everything clears it once the job description is
+  // in the query — a 12-chunk index would return 8 chunks for every question asked. Scoring is
+  // only comparable within one query, so the useful cutoff is relative to that query's best hit.
+  // Pointed questions come back narrow, vague ones still come back broad.
+  const best = ranked[0]?.score ?? 0
+  const relevant = ranked.filter((entry) => entry.score >= best * RELATIVE_FLOOR)
+  return (relevant.length < MIN_RESULTS ? ranked.slice(0, MIN_RESULTS) : relevant).slice(0, limit)
 }
 
 function retrieveVector(
@@ -165,12 +291,14 @@ function retrieveVector(
 }
 
 /** Reciprocal rank fusion — combines ranked lists without needing score calibration. */
-function reciprocalRankFusion(lists: RetrievedChunk[][]): RetrievedChunk[] {
+function reciprocalRankFusion(
+  channels: Array<{ list: RetrievedChunk[]; weight: number }>,
+): RetrievedChunk[] {
   const fused = new Map<string, { chunk: ContextChunk; score: number }>()
 
-  for (const list of lists) {
+  for (const { list, weight } of channels) {
     list.forEach((entry, rank) => {
-      const add = 1 / (RRF_K + rank + 1)
+      const add = weight / (RRF_K + rank + 1)
       const existing = fused.get(entry.chunk.id)
       if (existing) existing.score += add
       else fused.set(entry.chunk.id, { chunk: entry.chunk, score: add })
@@ -178,6 +306,29 @@ function reciprocalRankFusion(lists: RetrievedChunk[][]): RetrievedChunk[] {
   }
 
   return [...fused.values()].sort((a, b) => b.score - a.score)
+}
+
+/**
+ * Term → weight, taking the highest weight any part gave it. Deliberately not a sum: a word that
+ * appears forty times in the job description should not outrank a word from the question itself.
+ * Each term also contributes its morphological family at `VARIANT_DISCOUNT` of its weight, so
+ * "disagreed" finds a chunk that only says "disagreement" — stored tokens are exact words and
+ * cannot be stemmed without a migration, so the bridging happens here, on the query side.
+ */
+function weighQueryTerms(query: Query): Map<string, number> {
+  const parts = toParts(query)
+  const weights = new Map<string, number>()
+  const bump = (term: string, weight: number) =>
+    weights.set(term, Math.max(weights.get(term) ?? 0, weight))
+
+  for (const part of parts) {
+    for (const term of tokenize(part.text)) {
+      bump(term, part.weight)
+      for (const variant of termVariants(term)) bump(variant, part.weight * VARIANT_DISCOUNT)
+    }
+  }
+
+  return weights
 }
 
 function sumValues(counts: Record<string, number>): number {

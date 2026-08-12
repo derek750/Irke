@@ -10,6 +10,7 @@ import {
 } from '@/lib/connectors/drive'
 import type { DriveFolder } from '@/lib/connectors/drive'
 import { syncDrive } from '@/lib/connectors/sync'
+import { ensureContextEmbeddings } from '@/lib/context/build-index'
 import { replaceDocsForSource } from '@/lib/db'
 import { errorMessage } from '@/lib/messages'
 import { DriveFolderPicker } from './DriveFolderPicker'
@@ -94,6 +95,8 @@ export function DriveConnection({ onChanged }: DriveConnectionProps) {
       setDrive((await getConnections()).drive)
       setStatus(describeSync(result.indexed, result.skipped, 'file'))
       onChanged()
+      // Freshly synced chunks embed themselves so hybrid retrieval stays live.
+      void ensureContextEmbeddings()
     })
 
   const onDisconnect = () =>

@@ -41,6 +41,8 @@ See `connectors/CLAUDE.md` for auth, sync contract, and what gets indexed. Short
 - Missing facts → literal `[NEED INPUT]` (`NEEDS_INPUT_MARKER`)
 - Return answer text only (no preamble)
 - `[PRIOR DRAFT]` excerpts are story memory to adapt from — never paste
+- A per-answer `steer` becomes a "candidate's direction" section beside the question in **both** user prompts (it outranks topic guidance; unsupported asks become `[NEED INPUT]`), and excerpts retrieval pinned for it are labeled "pulled in for this direction". Standing `extraInstructions` stay in the system prompt — do not merge the two
+- A `baseDraft` (text the user wrote or edited, sent on a refine) is a "current draft — build on this" section in the draft pass and "the candidate's own draft this grew from" in the revise pass: kept story, kept facts, the candidate's words protected from the AI-tell edit. Never render it and a rejected-answers block in the same prompt
 
 Two skill blocks live in the draft system prompt and are mirrored in the revise checklist:
 

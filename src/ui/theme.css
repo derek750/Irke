@@ -231,6 +231,11 @@ label {
   overflow-wrap: anywhere;
 }
 
+.sources-list li .badge {
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+
 .sources-list li:nth-child(odd) {
   background: rgba(255, 255, 255, 0.03);
 }

@@ -32,7 +32,7 @@ export interface Settings {
 }
 
 /** Where a context document came from. Doubles as the tag prefixed onto every chunk. */
-export type ContextSource = 'story' | 'document' | 'drive' | 'github' | 'generated'
+export type ContextSource = 'story' | 'document' | 'drive' | 'github' | 'generated' | 'distilled'
 
 export interface ContextDoc {
   id: string
@@ -61,6 +61,8 @@ export interface ContextChunk {
 export interface RetrievedChunk {
   chunk: ContextChunk
   score: number
+  /** Included because the user's steer matched it, not (only) because the question did. */
+  steered?: boolean
 }
 
 export interface AnswerBankEntry {
@@ -127,5 +129,13 @@ export interface GeneratedAnswer {
   answer: string
   source: 'llm'
   sources: string[]
+  /** Subset of `sources` that entered retrieval because the steer asked for them. */
+  steeredSources?: string[]
+  /**
+   * True when the index has vectors but the query embedding failed, so this draft was grounded
+   * by keyword match alone. Not set when the index simply has no vectors — that is the expected
+   * mode without an OpenAI / OpenRouter key, not a degradation.
+   */
+  degradedRetrieval?: boolean
   needsInput: boolean
 }

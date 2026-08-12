@@ -39,12 +39,18 @@ When adding a message type:
 Generation (`background/generate.ts`) always drafts via the LLM over retrieved context.
 Saved answers are **not** pasted back as-is.
 
+A per-question steer (the card's **Extra instructions**) reaches both halves of that: retrieval pins the steer's best-matching chunks to the front of the window, and the prompt carries the direction next to the question. `GeneratedAnswer.steeredSources` tells the panel which documents came in because of it.
+
+**Distill stories** (options Data tab) adds an LLM-condensed layer to the index: one markdown notes doc per document (`source: 'distilled'`, typed story cards in question vocabulary), searched in the same flat pool. Retrieval chains each distilled hit's parent document in behind it, so the model gets the card that matched and the original it condenses.
+
 Every generated answer is stored in the answer bank **and** mirrored into the context index
 as `source: 'generated'` (`[PRIOR DRAFT]`); editing a draft re-banks it on blur. Regenerating appends to
 `AnswerBankEntry.versions` rather than overwriting, so no attempt is lost to another click, but only the
 current answer is mirrored into the index. Those chunks only enter retrieval
-when Settings.`includeGeneratedInRag` is on (off by default). Embeddings still require a
-manual **Build index** on the Data tab.
+when Settings.`includeGeneratedInRag` is on (off by default). Embeddings maintain themselves:
+`ensureContextEmbeddings()` runs after every ingest path and on scan whenever an OpenAI or
+OpenRouter key is set, so **Build context** on the Data tab is a backfill/rebuild, not a
+prerequisite.
 
 ## Storage boundaries
 

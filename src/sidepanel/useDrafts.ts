@@ -8,6 +8,10 @@ export interface DraftState {
   status: 'idle' | 'generating' | 'ready' | 'filled'
   source: GeneratedAnswer['source'] | null
   sources: string[]
+  /** Sources the steer pulled into retrieval, so the panel can show the nudge landed. */
+  steeredSources: string[]
+  /** The semantic index exists but could not be reached for this draft (keyword match only). */
+  degraded: boolean
   needsInput: boolean
   error: string | null
   /** What the answer bank already holds, so an untouched draft is never rewritten. */
@@ -23,6 +27,8 @@ const EMPTY_DRAFT: DraftState = {
   status: 'idle',
   source: null,
   sources: [],
+  steeredSources: [],
+  degraded: false,
   needsInput: false,
   error: null,
   savedValue: null,
@@ -57,9 +63,13 @@ export function useDrafts() {
       patch(question.fieldId, { status: 'generating', error: null })
 
       const draft = drafts[question.fieldId]
-      // Everything already seen for this field: the generated attempts plus any hand edit on top
-      // of the last one. All of it is off the table for the retry.
-      const rejected = regenerate ? [...(draft?.history ?? []), draft?.value ?? ''] : []
+      const value = draft?.value ?? ''
+      const attempts = draft?.history ?? []
+      // Text the user typed or edited is a commitment, not a rejection: the retry must build on
+      // it (refine). An untouched generated draft is the opposite — everything seen so far is
+      // off the table and the retry goes looking for a different answer.
+      const isEdited = value.trim().length > 0 && !attempts.includes(value)
+      const rejected = regenerate && !isEdited ? [...attempts, value] : []
 
       const response = await sendToBackground({
         type: 'bg:generate',
@@ -68,6 +78,7 @@ export function useDrafts() {
         regenerate,
         steer: draft?.steer.trim() || undefined,
         previousAnswers: rejected.length ? rejected : undefined,
+        currentDraft: regenerate && isEdited ? value : undefined,
       })
       if (!response.ok) {
         patch(question.fieldId, { status: 'idle', error: response.error })
@@ -82,6 +93,8 @@ export function useDrafts() {
         status: 'ready',
         source: result.source,
         sources: result.sources,
+        steeredSources: result.steeredSources ?? [],
+        degraded: result.degradedRetrieval ?? false,
         needsInput: result.needsInput,
         error: null,
         // The generate pipeline banks its own output, so this is already stored.

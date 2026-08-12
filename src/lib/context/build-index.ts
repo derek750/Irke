@@ -41,3 +41,17 @@ export async function buildContextIndex(options?: {
 
   return { embedded: updated.length, skipped, total: chunks.length }
 }
+
+/**
+ * Best-effort auto-embed of whatever lacks a vector, called after every ingest path (story,
+ * upload, Drive/GitHub sync, saved answers) and on scan, so hybrid retrieval stays live without
+ * anyone remembering to click Build context. Quiet by design: no key, an Anthropic-only setup,
+ * or a failed request leaves keyword-only retrieval working, and the next call heals the gap.
+ */
+export async function ensureContextEmbeddings(): Promise<BuildIndexResult | null> {
+  try {
+    return await buildContextIndex()
+  } catch {
+    return null
+  }
+}

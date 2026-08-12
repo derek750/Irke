@@ -8,9 +8,11 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
-    "smoke": "npm run smoke:retrieval && npm run smoke:detect",
+    "smoke": "npm run smoke:retrieval && npm run smoke:detect && npm run smoke:prompt && npm run smoke:generate",
     "smoke:retrieval": "esbuild scripts/smoke-retrieval.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/irke-retrieval.mjs --log-level=error && node node_modules/.cache/irke-retrieval.mjs",
     "smoke:detect": "esbuild scripts/smoke-detect.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/irke-detect.mjs --log-level=error && node node_modules/.cache/irke-detect.mjs",
+    "smoke:prompt": "esbuild scripts/smoke-prompt.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/irke-prompt.mjs --log-level=error && node node_modules/.cache/irke-prompt.mjs",
+    "smoke:generate": "esbuild scripts/smoke-generate.ts --bundle --platform=node --format=esm --alias:@/lib/db=./scripts/stubs/db.ts --alias:@/lib/llm=./scripts/stubs/llm.ts --alias:@/lib/settings=./scripts/stubs/settings.ts --alias:@/lib/answer-bank=./scripts/stubs/answer-bank.ts --alias:@/lib/context/embed=./scripts/stubs/embed.ts --outfile=node_modules/.cache/irke-generate.mjs --log-level=error && node node_modules/.cache/irke-generate.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

@@ -42,7 +42,7 @@ npm install
 npm run build # typecheck + vite → dist/
 npm run dev # Vite + CRXJS HMR; still load dist/ in Chrome
 npm run typecheck
-npm run smoke # BM25 retrieval + question-detection checks
+npm run smoke # retrieval, question-detection, prompt-contract, and generate-pipeline checks
 ```
 
 Load in Chrome: `chrome://extensions` → Developer mode → **Load unpacked** → select `dist/`. After code changes that touch the content script, reload the extension **and** the job application tab.

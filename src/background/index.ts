@@ -1,4 +1,5 @@
 import { rememberAnswer } from '@/lib/answer-bank'
+import { ensureContextEmbeddings } from '@/lib/context/build-index'
 import type { BackgroundRequest, BackgroundResponse } from '@/lib/messages'
 import { errorMessage, sendToTab } from '@/lib/messages'
 import { generateAnswer } from './generate'
@@ -21,6 +22,9 @@ chrome.runtime.onMessage.addListener(
 async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
   switch (request.type) {
     case 'bg:scanActiveTab': {
+      // Embed anything new while the user is still reading the scanned questions — by the time
+      // they click Generate, hybrid retrieval is live and nobody paid the latency.
+      void ensureContextEmbeddings()
       const tabId = await activeTabId()
       return scanTab(tabId)
     }
@@ -33,7 +37,10 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
         extraInstructions: request.extraInstructions,
         steer: request.steer,
         previousAnswers: request.previousAnswers,
+        currentDraft: request.currentDraft,
       })
+      // The draft was just banked as a `generated` doc; give its chunks vectors right away.
+      void ensureContextEmbeddings()
       return { ok: true, type: 'generate', result }
     }
 
@@ -50,6 +57,7 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
 
     case 'bg:saveAnswer': {
       await rememberAnswer(request)
+      void ensureContextEmbeddings()
       return { ok: true, type: 'saveAnswer' }
     }
 
