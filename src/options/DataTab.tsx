@@ -43,7 +43,24 @@ export function DataTab() {
   }, [refresh])
 
   useEffect(() => {
-    void ensureAnswersIndexed().then(refresh)
+    // Refresh even if the backfill fails — an error there should not leave the tab blank.
+    void ensureAnswersIndexed()
+      .catch(() => {})
+      .then(refresh)
+  }, [refresh])
+
+  // Answers generated in the side panel land in IndexedDB from the service worker while this
+  // page sits open. Nothing pushes that change here, so refetch whenever the user comes back.
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refresh()
+    }
+    window.addEventListener('focus', onVisible)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('focus', onVisible)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [refresh])
 
   const grouped = useMemo(() => {
