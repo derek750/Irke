@@ -1,12 +1,5 @@
 import type { DetectedQuestion, JobContext } from '@/lib/types'
 
-export type ExportFormat = 'pdf' | 'tex'
-
-const MIME_TYPES: Record<ExportFormat, string> = {
-  pdf: 'application/pdf',
-  tex: 'application/x-tex;charset=utf-8',
-}
-
 /** Per-segment filename caps. A question label can be a whole paragraph on some forms. */
 const MAX_COMPANY_CHARS = 24
 const MAX_TITLE_CHARS = 32
@@ -19,22 +12,18 @@ export function resolveAnswer(question: DetectedQuestion, draftValue: string | u
   return (draftValue ?? '').trim() || question.currentValue.trim()
 }
 
-export function exportFilename(format: ExportFormat, job: JobContext): string {
+export function exportFilename(job: JobContext): string {
   const parts = [
     'cover-letter',
     slugify(job.company, MAX_COMPANY_CHARS),
     slugify(job.title, MAX_TITLE_CHARS),
   ].filter(Boolean)
 
-  return `${parts.join('-')}.${format}`
+  return `${parts.join('-')}.pdf`
 }
 
-export function downloadFile(
-  filename: string,
-  data: string | Uint8Array,
-  format: ExportFormat,
-): void {
-  const url = URL.createObjectURL(new Blob([data as BlobPart], { type: MIME_TYPES[format] }))
+export function downloadPdf(filename: string, bytes: Uint8Array): void {
+  const url = URL.createObjectURL(new Blob([bytes as BlobPart], { type: 'application/pdf' }))
 
   const anchor = document.createElement('a')
   anchor.href = url
@@ -45,6 +34,16 @@ export function downloadFile(
 
   // Revoking in the same tick cancels the download before Chrome has read the blob.
   setTimeout(() => URL.revokeObjectURL(url), 10_000)
+}
+
+/** Chrome messages are JSON, so PDF bytes travel to the content script as base64. */
+export function bytesToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  const CHUNK = 0x8000
+  for (let offset = 0; offset < bytes.length; offset += CHUNK) {
+    binary += String.fromCharCode(...bytes.subarray(offset, offset + CHUNK))
+  }
+  return btoa(binary)
 }
 
 export async function copyText(text: string): Promise<boolean> {

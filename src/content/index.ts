@@ -1,7 +1,7 @@
 import type { ContentRequest, ContentResponse } from '@/lib/messages'
 import { errorMessage } from '@/lib/messages'
 import { scanQuestions } from './detect'
-import { fillField, highlightField } from './fill'
+import { attachFile, fillField, highlightField } from './fill'
 import { scrapeJobContext } from './scrape'
 
 chrome.runtime.onMessage.addListener(
@@ -22,6 +22,10 @@ chrome.runtime.onMessage.addListener(
         case 'content:fill':
           fillField(request.fieldId, request.value)
           sendResponse({ ok: true, type: 'fill' })
+          break
+        case 'content:attach':
+          attachFile(request.fieldId, request.filename, request.data)
+          sendResponse({ ok: true, type: 'attach' })
           break
         case 'content:highlight':
           highlightField(request.fieldId)

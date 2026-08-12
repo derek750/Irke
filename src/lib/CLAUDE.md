@@ -16,7 +16,7 @@ Shared domain logic used by background, content (types/messages only), side pane
 | `prompt.ts` | Draft + revise prompt builders; context-reading and writing skills; per-topic guidance; `[NEED INPUT]` contract; optional `previous` section for regenerates |
 | `llm.ts` | BYOK OpenAI + Anthropic chat completions |
 | `context/` | Chunking, tokenization, BM25 + optional embedding hybrid retrieval (see `context/CLAUDE.md`) |
-| `documents/` | `cover-letter.ts`: a draft plus a letterhead typeset as a PDF or `moderncv` `.tex` |
+| `documents/` | `cover-letter.ts`: a draft plus a letterhead typeset as a `moderncv`-style PDF |
 
 ## Storage keys / stores
 
@@ -62,7 +62,7 @@ Two skill blocks live in the draft system prompt and are mirrored in the revise 
 
 ## Documents
 
-`documents/cover-letter.ts` is pure and React-free. `buildCoverLetterPdf` draws a `moderncv`-style classic letter with `pdf-lib`: name, contact line, rule, date, recipient, salutation, justified body at 11pt on US Letter with 1 inch margins, then the signature. Single column, no tables, no icons — ATS parsers read it fine. `buildCoverLetterTex` emits the equivalent `moderncv` source for anyone who would rather finish it in Overleaf.
+`documents/cover-letter.ts` is pure and React-free. `buildCoverLetterPdf` draws a `moderncv`-style classic letter with `pdf-lib`: name, contact line, rule, date, recipient, salutation, justified body at 11pt on US Letter with 1 inch margins, then the signature. Single column, no tables, no icons — ATS parsers read it fine.
 
 Latin Modern Roman (`ui/fonts/`) is what makes the page read as LaTeX; if embedding fails it falls back to the built-in Times-Roman. Because that fallback encodes WinAnsi and throws on anything outside it, text is sanitized once at the boundary in `prepare()` — accents stripped and unencodable characters dropped for the fallback only. Justification is manual: wrap with `widthOfTextAtSize`, then spread the slack across the gaps on every line but a paragraph's last.
 

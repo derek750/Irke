@@ -2,6 +2,8 @@ import { useCallback, useState } from 'react'
 
 import { sendToBackground } from '@/lib/messages'
 import type { DetectedQuestion, GeneratedAnswer, JobContext } from '@/lib/types'
+import { buildCoverLetterFile } from './cover-letter'
+import { bytesToBase64 } from './export'
 
 export interface DraftState {
   value: string
@@ -126,6 +128,34 @@ export function useDrafts() {
   )
 
   /**
+   * Cover-letter uploads: typeset the answer as the PDF and set it on the page's file input,
+   * exactly as if the user had picked the file — on their click, never on generate.
+   */
+  const attach = useCallback(
+    async (job: JobContext, question: DetectedQuestion, frameId: number, body: string) => {
+      if (!body.trim()) return
+
+      try {
+        const { filename, bytes } = await buildCoverLetterFile(job, body)
+        const response = await sendToBackground({
+          type: 'bg:attach',
+          fieldId: question.fieldId,
+          filename,
+          data: bytesToBase64(bytes),
+          frameId,
+        })
+        patch(
+          question.fieldId,
+          response.ok ? { status: 'filled', error: null } : { error: response.error },
+        )
+      } catch (error) {
+        patch(question.fieldId, { error: error instanceof Error ? error.message : String(error) })
+      }
+    },
+    [patch],
+  )
+
+  /**
    * Banks whatever the user has ended up with. Generation already saves its own output, so this
    * only has work to do once a draft has been edited by hand.
    */
@@ -148,5 +178,5 @@ export function useDrafts() {
     [drafts, patch],
   )
 
-  return { drafts, setValue, setSteer, generate, showVersion, fill, commit, reset }
+  return { drafts, setValue, setSteer, generate, showVersion, fill, attach, commit, reset }
 }

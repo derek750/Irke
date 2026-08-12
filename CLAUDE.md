@@ -4,7 +4,7 @@ Chrome Manifest V3 extension that reads a job description and the **story questi
 
 Irke deliberately ignores the specifics: name, email, phone, salary, start date, work authorization, demographics. Those are quick to type and disastrous to guess at. It only handles the questions that ask for a story.
 
-A cover-letter **file upload** is one of those questions: Irke drafts the letter and typesets it as a LaTeX-styled PDF (plus `.tex` source) for the user to attach. It never writes to a file input.
+A cover-letter **file upload** is one of those questions: Irke drafts the letter, typesets it as a LaTeX-styled PDF, and on an explicit **Attach PDF** click sets that file on the detected cover-letter input — the only file control it ever writes, and only ever on the user's click. A **Download PDF** button keeps a copy or covers pages where attaching fails. It never submits anything.
 
 There is **no Irke backend**. Settings and connection state live in `chrome.storage.local`; context documents and the answer bank live in IndexedDB. The only network traffic is the browser talking directly to OpenAI or Anthropic, Google Drive, and GitHub.
 
@@ -72,7 +72,7 @@ options page ──▶ Google Drive folder ─┐
 
 Answer path: **context + LLM** (always). Saved answers are indexed as prior drafts and only enter retrieval when the user enables that setting — never pasted as-is. Never invent facts; missing required facts become `[NEED INPUT]`.
 
-Cover letters take one more step: the draft plus the Letterhead settings go through `src/lib/documents/cover-letter.ts`, which renders a `moderncv`-style PDF with `pdf-lib` and bundled Latin Modern, or the equivalent `.tex` source.
+Cover letters take one more step: the draft plus the Letterhead settings go through `src/lib/documents/cover-letter.ts`, which renders a `moderncv`-style PDF with `pdf-lib` and bundled Latin Modern — attached to the page's upload field on click, or downloaded.
 
 ## Agent guidelines
 

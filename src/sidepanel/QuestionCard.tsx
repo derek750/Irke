@@ -4,8 +4,8 @@ import type { DetectedQuestion, JobContext, StoryTopic } from '@/lib/types'
 import { SourcesPopover } from '@/ui/SourcesPopover'
 import { CopyButton } from './CopyButton'
 import { buildCoverLetterFile } from './cover-letter'
-import { resolveAnswer, type ExportFormat } from './export'
-import { ExportMenu } from './ExportMenu'
+import { resolveAnswer } from './export'
+import { ExportButton } from './ExportButton'
 import type { DraftState } from './useDrafts'
 
 const DRAFT_SOURCE_LABELS: Record<NonNullable<DraftState['source']>, string> = {
@@ -34,6 +34,8 @@ interface QuestionCardProps {
   /** Swaps the textarea to an earlier attempt from this session. */
   onShowVersion: (index: number) => void
   onFill: () => void
+  /** Uploads only: typeset the answer as a PDF and set it on the page's file input. */
+  onAttach: (body: string) => void
   /** Banks an edited draft; the generated text is already saved by the pipeline. */
   onCommit: () => void
 }
@@ -49,6 +51,7 @@ export function QuestionCard({
   onGenerate,
   onShowVersion,
   onFill,
+  onAttach,
   onCommit,
 }: QuestionCardProps) {
   const [steerOpen, setSteerOpen] = useState(false)
@@ -67,7 +70,7 @@ export function QuestionCard({
   const previousIndex = isEdited ? history.length - 1 : versionIndex - 1
   const nextIndex = isEdited ? -1 : versionIndex + 1
 
-  const buildFile = (format: ExportFormat) => buildCoverLetterFile(job, answer, format)
+  const buildFile = () => buildCoverLetterFile(job, answer)
 
   return (
     <article className={`question-card${draft?.status === 'filled' ? ' filled' : ''}`}>
@@ -154,14 +157,18 @@ export function QuestionCard({
             <button className="primary" disabled={isBusy} onClick={() => onGenerate(hasDraft)}>
               {isBusy ? 'Drafting…' : hasDraft ? (isEdited ? 'Refine' : 'Regenerate') : 'Generate'}
             </button>
-            {!isUpload && (
+            {isUpload ? (
+              <button disabled={!answer || isBusy} onClick={() => onAttach(answer)}>
+                Attach PDF
+              </button>
+            ) : (
               <button disabled={!hasDraft || isBusy} onClick={onFill}>
                 Fill field
               </button>
             )}
             <CopyButton value={() => answer} disabled={!answer || isBusy} />
             {question.topic === 'cover_letter' && (
-              <ExportMenu label="Export" disabled={!answer || isBusy} build={buildFile} />
+              <ExportButton disabled={!answer || isBusy} build={buildFile} />
             )}
           </div>
         </div>

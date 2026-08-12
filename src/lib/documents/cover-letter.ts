@@ -59,41 +59,6 @@ export async function buildCoverLetterPdf(input: CoverLetterInput): Promise<Uint
   return pdf.save()
 }
 
-/**
- * The same letter as moderncv source, for anyone who would rather finish it in Overleaf.
- */
-export function buildCoverLetterTex({ letterhead, job, body }: CoverLetterInput): string {
-  const [first, ...rest] = (letterhead.name || 'First Last').split(/\s+/)
-  const preamble = [
-    '\\documentclass[11pt,letterpaper,roman]{moderncv}',
-    '\\moderncvstyle{classic}',
-    '\\moderncvcolor{black}',
-    '\\usepackage[scale=0.8]{geometry}',
-    '',
-    `\\name{${tex(first)}}{${tex(rest.join(' '))}}`,
-    letterhead.location ? `\\address{${tex(letterhead.location)}}{}{}` : null,
-    letterhead.phone ? `\\phone[mobile]{${tex(letterhead.phone)}}` : null,
-    letterhead.email ? `\\email{${tex(letterhead.email)}}` : null,
-    letterhead.links ? `\\extrainfo{${tex(letterhead.links)}}` : null,
-  ].filter((line): line is string => line !== null)
-
-  const document = [
-    '\\begin{document}',
-    `\\recipient{Hiring Team}{${tex(job.company || 'the hiring team')}}`,
-    '\\date{\\today}',
-    `\\opening{${tex(salutation(job))}}`,
-    '\\closing{Sincerely,}',
-    '\\makelettertitle',
-    '',
-    paragraphsOf(body).map(tex).join('\n\n'),
-    '',
-    '\\makeletterclosing',
-    '\\end{document}',
-  ]
-
-  return `${[...preamble, '', ...document].join('\n')}\n`
-}
-
 async function embedFaces(pdf: PDFDocument): Promise<Faces> {
   try {
     const [regular, bold] = await Promise.all([loadFont(regularFontUrl), loadFont(boldFontUrl)])
@@ -326,27 +291,3 @@ function toLatin1(text: string): string {
     .replace(/[^\n\u0020-\u00FF\u2013\u2014\u2018\u2019\u201C\u201D\u2022\u2026]/g, '')
 }
 
-const TEX_ESCAPES: Record<string, string> = {
-  '\\': '\\textbackslash{}',
-  '&': '\\&',
-  '%': '\\%',
-  $: '\\$',
-  '#': '\\#',
-  _: '\\_',
-  '{': '\\{',
-  '}': '\\}',
-  '~': '\\textasciitilde{}',
-  '^': '\\textasciicircum{}',
-}
-
-function tex(text: string): string {
-  return clean(text)
-    .replace(/[\\&%$#_{}~^]/g, (character) => TEX_ESCAPES[character] ?? character)
-    .replace(/\u2014/g, '---')
-    .replace(/\u2013/g, '--')
-    .replace(/\u2026/g, '\\ldots{}')
-    .replace(/[\u2018\u201B]/g, '`')
-    .replace(/[\u2019\u201A]/g, "'")
-    .replace(/[\u201C\u201F]/g, '``')
-    .replace(/[\u201D\u201E]/g, "''")
-}

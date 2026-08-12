@@ -2,28 +2,24 @@ import { sendToBackground } from '@/lib/messages'
 import { getSettings } from '@/lib/settings'
 import type { JobContext } from '@/lib/types'
 
-import { exportFilename, type ExportFormat } from './export'
+import { exportFilename } from './export'
 
 interface CoverLetterFile {
   filename: string
-  data: string | Uint8Array
+  bytes: Uint8Array
 }
 
-export async function buildCoverLetterFile(
-  job: JobContext,
-  body: string,
-  format: ExportFormat,
-): Promise<CoverLetterFile> {
+export async function buildCoverLetterFile(job: JobContext, body: string): Promise<CoverLetterFile> {
   // pdf-lib and the embedded fonts are most of the panel's weight, and most questions never
-  // need them, so the typesetter is only pulled in once someone actually exports.
-  const { buildCoverLetterPdf, buildCoverLetterTex } = await import('@/lib/documents/cover-letter')
+  // need them, so the typesetter is only pulled in once someone actually attaches or downloads.
+  const { buildCoverLetterPdf } = await import('@/lib/documents/cover-letter')
 
   const { letterhead } = await getSettings()
   const input = { job, body, letterhead: { ...letterhead, name: await resolveName(letterhead.name) } }
 
   return {
-    filename: exportFilename(format, job),
-    data: format === 'pdf' ? await buildCoverLetterPdf(input) : buildCoverLetterTex(input),
+    filename: exportFilename(job),
+    bytes: await buildCoverLetterPdf(input),
   }
 }
 

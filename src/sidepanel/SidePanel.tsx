@@ -11,7 +11,7 @@ export function SidePanel() {
   const [isScanning, setIsScanning] = useState(false)
   const [scanError, setScanError] = useState<string | null>(null)
   const [expanded, setExpanded] = useState<string | null>(null)
-  const { drafts, setValue, setSteer, generate, showVersion, fill, commit, reset } = useDrafts()
+  const { drafts, setValue, setSteer, generate, showVersion, fill, attach, commit, reset } = useDrafts()
 
   const runScan = useCallback(async () => {
     setIsScanning(true)
@@ -79,6 +79,7 @@ export function SidePanel() {
               onGenerate={(regenerate) => generate(scan.job, question, regenerate)}
               onShowVersion={(index) => showVersion(question.fieldId, index)}
               onFill={() => fill(question.fieldId, scan.frameId)}
+              onAttach={(body) => attach(scan.job, question, scan.frameId, body)}
               onCommit={() => commit(question, scan.job.company)}
             />
           ))}

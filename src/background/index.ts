@@ -55,6 +55,22 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
       return { ok: true, type: 'fill' }
     }
 
+    case 'bg:attach': {
+      const tabId = await activeTabId()
+      const response = await sendToTab(
+        tabId,
+        {
+          type: 'content:attach',
+          fieldId: request.fieldId,
+          filename: request.filename,
+          data: request.data,
+        },
+        request.frameId,
+      )
+      if (!response.ok) return response
+      return { ok: true, type: 'attach' }
+    }
+
     case 'bg:saveAnswer': {
       await rememberAnswer(request)
       void ensureContextEmbeddings()

@@ -52,6 +52,10 @@ Context syncing does **not** happen here. Drive and GitHub sync from the options
 
 Forwards `content:fill` to the **exact** `frameId` from the last scan. Never fill the top frame when the form lives in an iframe.
 
+### Attach (`bg:attach`)
+
+Forwards `content:attach` (filename + base64 PDF bytes, built in the panel) to the same exact `frameId`, where the content script sets the file on the detected cover-letter input. Same frame rule as fill; the worker only relays.
+
 ### Save (`bg:saveAnswer`)
 
 Calls `rememberAnswer` in `lib/answer-bank.ts` (fingerprint upsert + mirror into the context index as `source: 'generated'`). `bg:generate` already banks its own output, so the side panel only sends this after a draft has been edited by hand. Every distinct answer is appended to `AnswerBankEntry.versions`; only the current one is indexed.
