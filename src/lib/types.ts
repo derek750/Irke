@@ -1,4 +1,4 @@
-export type LlmProvider = 'openai' | 'anthropic' | 'openrouter'
+export type LlmProvider = 'openai' | 'openrouter'
 
 /** Fast = draft only; polished = draft + revise pass (default). */
 export type GenerationMode = 'fast' | 'polished'

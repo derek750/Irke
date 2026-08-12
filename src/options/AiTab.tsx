@@ -1,28 +1,66 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import { DEFAULT_MODELS, getSettings, saveSettings } from '@/lib/settings'
 import type { GenerationMode, LlmProvider, Settings } from '@/lib/types'
 
 const PROVIDER_LABELS: Record<LlmProvider, string> = {
   openai: 'OpenAI',
-  anthropic: 'Anthropic (Claude)',
   openrouter: 'OpenRouter',
 }
 
 const MODE_LABELS: Record<GenerationMode, string> = {
-  polished: 'Polished (draft + revise)',
-  fast: 'Fast (draft only)',
+  polished: 'Polished',
+  fast: 'Fast',
+}
+
+type SettingsGroupId = 'model' | 'instructions'
+
+function SettingsGroup({
+  id,
+  label,
+  open,
+  onToggle,
+  children,
+}: {
+  id: SettingsGroupId
+  label: string
+  open: boolean
+  onToggle: () => void
+  children: ReactNode
+}) {
+  return (
+    <div className="source-group">
+      <button
+        type="button"
+        className="source-group-head"
+        onClick={onToggle}
+        aria-expanded={open}
+        aria-controls={`settings-${id}`}
+      >
+        <span className="source-group-chevron" aria-hidden="true">
+          {open ? '▾' : '▸'}
+        </span>
+        <span className="source-group-label">{label}</span>
+      </button>
+      {open && (
+        <div id={`settings-${id}`} className="source-group-body stack">
+          {children}
+        </div>
+      )}
+    </div>
+  )
 }
 
 export function AiTab() {
   const [settings, setSettings] = useState<Settings | null>(null)
   const [savedAt, setSavedAt] = useState<number | null>(null)
+  const [openGroups, setOpenGroups] = useState<Partial<Record<SettingsGroupId, boolean>>>({})
 
   useEffect(() => {
     void getSettings().then(setSettings)
   }, [])
 
-  if (!settings) return <p className="hint">Loading…</p>
+  if (!settings) return null
 
   const update = (changes: Partial<Settings>) => {
     setSettings({ ...settings, ...changes })
@@ -37,125 +75,106 @@ export function AiTab() {
     setSavedAt(Date.now())
   }
 
+  const toggle = (id: SettingsGroupId) => {
+    setOpenGroups((prev) => ({ ...prev, [id]: !(prev[id] ?? false) }))
+  }
+
+  const isOpen = (id: SettingsGroupId) => openGroups[id] ?? false
+
   return (
     <section className="section">
       <div>
-        <h3>AI provider</h3>
-        <p className="hint">
-          Your key is stored locally and used only for direct calls from this browser to your provider.
-          Irke has no server.
-        </p>
+        <label htmlFor="generation-mode">Generation mode</label>
+        <select
+          id="generation-mode"
+          value={settings.generationMode}
+          onChange={(event) => update({ generationMode: event.target.value as GenerationMode })}
+        >
+          {(Object.keys(MODE_LABELS) as GenerationMode[]).map((mode) => (
+            <option key={mode} value={mode}>
+              {MODE_LABELS[mode]}
+            </option>
+          ))}
+        </select>
       </div>
 
-      <div className="card stack">
-        <div className="grid-2">
-          <div>
-            <label htmlFor="provider">Provider</label>
-            <select
-              id="provider"
-              value={settings.provider}
-              onChange={(event) => onProviderChange(event.target.value as LlmProvider)}
-            >
-              {(Object.keys(PROVIDER_LABELS) as LlmProvider[]).map((provider) => (
-                <option key={provider} value={provider}>
-                  {PROVIDER_LABELS[provider]}
-                </option>
-              ))}
-            </select>
+      <div className="doc-list">
+        <SettingsGroup
+          id="model"
+          label="Model"
+          open={isOpen('model')}
+          onToggle={() => toggle('model')}
+        >
+          <div className="grid-2">
+            <div>
+              <label htmlFor="provider">Provider</label>
+              <select
+                id="provider"
+                value={settings.provider}
+                onChange={(event) => onProviderChange(event.target.value as LlmProvider)}
+              >
+                {(Object.keys(PROVIDER_LABELS) as LlmProvider[]).map((provider) => (
+                  <option key={provider} value={provider}>
+                    {PROVIDER_LABELS[provider]}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label htmlFor="model">Model</label>
+              <input
+                id="model"
+                value={settings.model}
+                onChange={(event) => update({ model: event.target.value })}
+              />
+            </div>
           </div>
 
           <div>
-            <label htmlFor="model">Model</label>
+            <label htmlFor="api-key">API key</label>
             <input
-              id="model"
-              value={settings.model}
-              onChange={(event) => update({ model: event.target.value })}
+              id="api-key"
+              type="password"
+              value={settings.apiKey}
+              onChange={(event) => update({ apiKey: event.target.value })}
             />
           </div>
-        </div>
+        </SettingsGroup>
 
-        <div>
-          <label htmlFor="api-key">API key</label>
-          <input
-            id="api-key"
-            type="password"
-            value={settings.apiKey}
-            placeholder={settings.provider === 'openrouter' ? 'sk-or-…' : 'sk-…'}
-            onChange={(event) => update({ apiKey: event.target.value })}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="temperature">Temperature — {settings.temperature.toFixed(2)}</label>
-          <input
-            id="temperature"
-            type="range"
-            min={0}
-            max={1}
-            step={0.05}
-            value={settings.temperature}
-            onChange={(event) => update({ temperature: Number(event.target.value) })}
-          />
-          <p className="hint">Lower stays close to your documents. Higher varies the wording.</p>
-        </div>
-
-        <div>
-          <label htmlFor="generation-mode">Generation mode</label>
-          <select
-            id="generation-mode"
-            value={settings.generationMode}
-            onChange={(event) => update({ generationMode: event.target.value as GenerationMode })}
-          >
-            {(Object.keys(MODE_LABELS) as GenerationMode[]).map((mode) => (
-              <option key={mode} value={mode}>
-                {MODE_LABELS[mode]}
-              </option>
-            ))}
-          </select>
-          <p className="hint">
-            Polished runs a second editor pass that strips AI tells. Fast skips it — roughly half the
-            wait and cost when you are iterating.
-          </p>
-        </div>
-
-        <div>
-          <label className="row" htmlFor="include-generated" style={{ gap: '0.5rem' }}>
-            <input
-              id="include-generated"
-              type="checkbox"
-              checked={settings.includeGeneratedInRag}
-              onChange={(event) => update({ includeGeneratedInRag: event.target.checked })}
+        <SettingsGroup
+          id="instructions"
+          label="Instructions"
+          open={isOpen('instructions')}
+          onToggle={() => toggle('instructions')}
+        >
+          <div>
+            <label htmlFor="extra">Extra instructions</label>
+            <textarea
+              id="extra"
+              value={settings.extraInstructions}
+              rows={5}
+              onChange={(event) => update({ extraInstructions: event.target.value })}
             />
-            Include saved AI drafts in retrieval
-          </label>
-          <p className="hint">
-            When on, answers you saved from the side panel can be retrieved as [PRIOR DRAFT]
-            context. They are never pasted as-is. Off by default so the index stays your own
-            writing until you opt in. Run Build context on the Context tab after saving drafts if you
-            want them in semantic search too.
-          </p>
-        </div>
+          </div>
+        </SettingsGroup>
+      </div>
 
-        <div>
-          <label htmlFor="extra">Extra instructions</label>
-          <textarea
-            id="extra"
-            value={settings.extraInstructions}
-            rows={4}
-            placeholder="e.g. Keep it direct and plain. No corporate buzzwords. Never mention salary."
-            onChange={(event) => update({ extraInstructions: event.target.value })}
-          />
-          <p className="hint">
-            Also editable on the Generate tab when you want to try a draft with different steering.
-          </p>
-        </div>
+      <label className="settings-check" htmlFor="include-generated">
+        <input
+          id="include-generated"
+          type="checkbox"
+          checked={settings.includeGeneratedInRag}
+          onChange={(event) => update({ includeGeneratedInRag: event.target.checked })}
+        />
+        Include AI generations as context
+      </label>
 
-        <div className="save-bar">
-          <button className="primary" onClick={onSave}>
-            Save
-          </button>
-          {savedAt && <span className="badge success">Saved</span>}
-        </div>
+      <div className="save-bar">
+        <button className="primary" onClick={onSave}>
+          Save
+        </button>
+        {savedAt && <span className="badge success">Saved</span>}
       </div>
     </section>
   )

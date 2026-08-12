@@ -285,6 +285,12 @@
   white-space: nowrap;
 }
 
+.save-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
 .upload-modal {
   width: min(760px, 100%);
   max-height: min(820px, calc(100vh - 32px));
@@ -310,6 +316,24 @@
 .connector-actions button {
   min-width: 108px;
   justify-content: center;
+}
+
+.settings-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  color: var(--text);
+  font-size: 13px;
+  width: fit-content;
+}
+
+.settings-check input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  flex-shrink: 0;
+  accent-color: var(--accent);
 }
 
 .hint {

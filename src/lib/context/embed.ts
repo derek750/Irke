@@ -12,7 +12,7 @@ const EMBED_URLS: Record<EmbeddingProvider, string> = {
 }
 
 /**
- * Embeddings via OpenAI or OpenRouter (OpenAI-compatible). Anthropic has no embeddings API.
+ * Embeddings via OpenAI or OpenRouter (OpenAI-compatible).
  */
 export function embeddingApiKey(settings: Settings): string {
   resolveEmbeddingProvider(settings)
@@ -25,7 +25,7 @@ export function resolveEmbeddingProvider(settings: Settings): EmbeddingProvider 
     !settings.apiKey.trim()
   ) {
     throw new Error(
-      'Building the embedding index needs an OpenAI or OpenRouter API key. Set the AI provider in the dashboard (Anthropic has no embeddings API).',
+      'Building the embedding index needs an OpenAI or OpenRouter API key. Set the AI provider in the dashboard.',
     )
   }
   return settings.provider
