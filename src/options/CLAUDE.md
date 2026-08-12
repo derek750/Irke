@@ -7,27 +7,27 @@ Dashboard UI (Chrome options page). Opens on first install and from the side pan
 | File | Responsibility |
 |------|----------------|
 | `index.html` / `main.tsx` | Vite entry |
-| `Options.tsx` | Tab shell: Data / Connectors / Answer bank / Generate / AI provider |
-| `DataTab.tsx` | Story composer, file upload, Build index, and the indexed-doc list |
+| `Options.tsx` | Top nav shell: Generate / Context / Connectors / Bank · Settings (trailing) |
+| `DataTab.tsx` | Context: story composer, file upload, Build index, indexed-doc list |
 | `ConnectorsTab.tsx` | Hosts Drive and GitHub connection cards |
 | `DriveConnection.tsx` | Google OAuth, folder picker, sync, disconnect |
 | `DriveFolderPicker.tsx` | Navigable Drive folder browser (browse + search) |
 | `GithubConnection.tsx` | GitHub OAuth sign-in, repo selection, sync, disconnect |
 | `SyncStatus.tsx` | Last-synced line + "indexed N, skipped M" summary |
-| `AnswersTab.tsx` | Edit / delete saved answer-bank entries |
+| `AnswersTab.tsx` | Bank: edit / delete saved answer-bank entries |
 | `GenerateTab.tsx` | Dry-run generation: question context, instructions, draft preview |
-| `AiTab.tsx` | Provider, model, API key, temperature, generation mode, extra instructions |
-| `options.css` | Layout |
+| `AiTab.tsx` | Settings: provider, model, API key, temperature, generation mode, extra instructions |
+| `options.css` | Dashboard shell + layout |
 
-## Tabs
+## Nav
 
-| Tab | Persistence | Notes |
+| Nav | Persistence | Notes |
 |-----|-------------|-------|
-| Data | IndexedDB via `db.ts` + `chunkDoc` | Stories, uploads, indexed list, Build index |
-| Connectors | Connection state in `chrome.storage.local`; sync writes IndexedDB | Syncs run here, not in the worker |
-| Answer bank | IndexedDB + mirrored `generated` context docs | Edit/delete sync the index; never auto-pasted on generate |
 | Generate | Calls `bg:generate` (always `regenerate: true`) | Question + optional JD/role; instructions override for the call; Save as default writes `extraInstructions` |
-| AI provider | `saveSettings` | Switching provider resets model to `DEFAULT_MODELS[provider]`; generation mode is `polished` / `fast`; `includeGeneratedInRag` gates prior drafts in retrieval |
+| Context | IndexedDB via `db.ts` + `chunkDoc` | Stories, uploads, indexed list, Build index (was Data) |
+| Connectors | Connection state in `chrome.storage.local`; sync writes IndexedDB | Syncs run here, not in the worker |
+| Bank | IndexedDB + mirrored `generated` context docs | Saved side-panel answers; never auto-pasted on generate |
+| Settings (right) | `saveSettings` | Switching provider resets model to `DEFAULT_MODELS[provider]`; generation mode is `polished` / `fast`; `includeGeneratedInRag` gates prior drafts in retrieval |
 
 There is no Profile tab. Irke does not answer name / email / salary / work-authorization questions, so it has nothing to store for them.
 

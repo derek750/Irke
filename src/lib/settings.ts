@@ -4,7 +4,6 @@ const SETTINGS_KEY = 'irke:settings'
 
 export const DEFAULT_MODELS: Record<LlmProvider, string> = {
   openai: 'gpt-4o-mini',
-  anthropic: 'claude-3-5-haiku-latest',
   openrouter: 'openai/gpt-4o-mini',
 }
 
@@ -20,7 +19,16 @@ export const DEFAULT_SETTINGS: Settings = {
 
 export async function getSettings(): Promise<Settings> {
   const stored = await chrome.storage.local.get(SETTINGS_KEY)
-  return { ...DEFAULT_SETTINGS, ...(stored[SETTINGS_KEY] as Partial<Settings> | undefined) }
+  const saved = stored[SETTINGS_KEY] as Partial<Settings> & { provider?: string } | undefined
+  const merged = { ...DEFAULT_SETTINGS, ...saved }
+
+  // Drop retired Anthropic provider if still stored from an older build.
+  if (merged.provider !== 'openai' && merged.provider !== 'openrouter') {
+    merged.provider = 'openai'
+    merged.model = DEFAULT_MODELS.openai
+  }
+
+  return merged
 }
 
 export async function saveSettings(settings: Settings): Promise<void> {

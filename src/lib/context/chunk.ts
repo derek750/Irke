@@ -17,7 +17,7 @@ export const SOURCE_LABELS: Record<ContextSource, string> = {
   document: 'Document',
   drive: 'Google Drive',
   github: 'GitHub',
-  generated: 'Prior draft',
+  generated: 'Generated',
 }
 
 /**

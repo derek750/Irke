@@ -53,6 +53,13 @@ export async function revokeDriveToken(): Promise<void> {
   await fetch(`https://accounts.google.com/o/oauth2/revoke?token=${token}`).catch(() => {})
 }
 
+/** Email on the Google account that granted the Drive token. */
+export async function getDriveAccountEmail(token: string): Promise<string | null> {
+  const response = await driveFetch(token, '/about?fields=user(emailAddress)')
+  const body = (await response.json()) as { user?: { emailAddress?: string } }
+  return body.user?.emailAddress?.trim() || null
+}
+
 async function driveFetch(token: string, path: string): Promise<Response> {
   const response = await fetch(`${DRIVE_API}${path}`, {
     headers: { Authorization: `Bearer ${token}` },

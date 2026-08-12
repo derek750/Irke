@@ -1,37 +1,81 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { ensureAnswersIndexed, forgetAnswer } from '@/lib/answer-bank'
 import { readUploadedFile } from '@/lib/connectors/sync'
 import { buildContextIndex } from '@/lib/context/build-index'
 import { SOURCE_LABELS } from '@/lib/context/chunk'
-import { deleteDocAndChunks, listChunks, listDocs, saveDoc } from '@/lib/db'
+import { deleteDocAndChunks, listDocs, saveDoc } from '@/lib/db'
 import { errorMessage } from '@/lib/messages'
-import type { ContextDoc } from '@/lib/types'
+import type { ContextDoc, ContextSource } from '@/lib/types'
+
+const SOURCE_ORDER: ContextSource[] = ['story', 'document', 'drive', 'github', 'generated']
 
 export function DataTab() {
   const [docs, setDocs] = useState<ContextDoc[]>([])
-  const [embeddedCount, setEmbeddedCount] = useState(0)
-  const [chunkCount, setChunkCount] = useState(0)
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
+  const [modalError, setModalError] = useState<string | null>(null)
   const [indexNotice, setIndexNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const [uploadOpen, setUploadOpen] = useState(false)
+  const [query, setQuery] = useState('')
+  const [openSources, setOpenSources] = useState<Partial<Record<ContextSource, boolean>>>({})
   const fileInput = useRef<HTMLInputElement>(null)
 
   const refresh = useCallback(() => {
     void listDocs().then(setDocs)
-    void listChunks().then((chunks) => {
-      setChunkCount(chunks.length)
-      setEmbeddedCount(chunks.filter((chunk) => chunk.embedding?.length).length)
-    })
   }, [])
-  useEffect(refresh, [refresh])
+
+  useEffect(() => {
+    void ensureAnswersIndexed().then(refresh)
+  }, [refresh])
+
+  const grouped = useMemo(() => {
+    const needle = query.trim().toLowerCase()
+    const filtered = needle
+      ? docs.filter(
+          (doc) =>
+            doc.title.toLowerCase().includes(needle) ||
+            doc.text.toLowerCase().includes(needle) ||
+            SOURCE_LABELS[doc.source].toLowerCase().includes(needle),
+        )
+      : docs
+
+    const map = new Map<ContextSource, ContextDoc[]>()
+    for (const source of SOURCE_ORDER) map.set(source, [])
+    for (const doc of filtered) {
+      const bucket = map.get(doc.source) ?? []
+      bucket.push(doc)
+      map.set(doc.source, bucket)
+    }
+    return SOURCE_ORDER.map((source) => ({
+      source,
+      label: SOURCE_LABELS[source],
+      items: map.get(source) ?? [],
+    })).filter((group) => {
+      if (group.source === 'generated') return !needle || group.items.length > 0
+      return group.items.length > 0
+    })
+  }, [docs, query])
+
+  const visibleCount = useMemo(
+    () => grouped.reduce((sum, group) => sum + group.items.length, 0),
+    [grouped],
+  )
+
+  const closeUpload = () => {
+    setUploadOpen(false)
+    setModalError(null)
+    setTitle('')
+    setText('')
+    if (fileInput.current) fileInput.current.value = ''
+  }
 
   const onAdd = async () => {
-    setError(null)
-    setIndexNotice(null)
+    setModalError(null)
     if (!text.trim()) {
-      setError('Write something first.')
+      setModalError('Write something first.')
       return
     }
 
@@ -44,11 +88,10 @@ export function DataTab() {
         text: text.trim(),
         createdAt: Date.now(),
       })
-      setTitle('')
-      setText('')
+      closeUpload()
       refresh()
     } catch (caught) {
-      setError(errorMessage(caught))
+      setModalError(errorMessage(caught))
     } finally {
       setBusy(null)
     }
@@ -57,14 +100,13 @@ export function DataTab() {
   const onUpload = async (files: FileList | null) => {
     if (!files?.length) return
     const file = files[0]
-    setError(null)
-    setIndexNotice(null)
+    setModalError(null)
     setBusy('upload')
 
     try {
       const extracted = await readUploadedFile(file)
       if (!extracted.trim()) {
-        throw new Error('No text came out of that file. If it is a scanned PDF, paste the text instead.')
+        throw new Error('No text came out of that file.')
       }
       await saveDoc({
         id: crypto.randomUUID(),
@@ -73,17 +115,22 @@ export function DataTab() {
         text: extracted.trim(),
         createdAt: Date.now(),
       })
+      closeUpload()
       refresh()
     } catch (caught) {
-      setError(errorMessage(caught))
+      setModalError(errorMessage(caught))
     } finally {
       setBusy(null)
       if (fileInput.current) fileInput.current.value = ''
     }
   }
 
-  const onDelete = async (docId: string) => {
-    await deleteDocAndChunks(docId)
+  const onDelete = async (doc: ContextDoc) => {
+    if (doc.source === 'generated' && doc.id.startsWith('generated:')) {
+      await forgetAnswer(doc.id.slice('generated:'.length))
+    } else {
+      await deleteDocAndChunks(doc.id)
+    }
     refresh()
   }
 
@@ -95,11 +142,11 @@ export function DataTab() {
       const result = await buildContextIndex()
       refresh()
       if (result.total === 0) {
-        setIndexNotice('Nothing to embed yet. Add a story or sync a connection first.')
+        setIndexNotice('Nothing to embed yet.')
         return
       }
       if (result.embedded === 0) {
-        setIndexNotice(`Index already up to date (${result.total} chunks embedded).`)
+        setIndexNotice(`Index already up to date (${result.total} chunks).`)
         return
       }
       setIndexNotice(
@@ -114,97 +161,134 @@ export function DataTab() {
     }
   }
 
+  const toggleSource = (source: ContextSource) => {
+    setOpenSources((prev) => ({ ...prev, [source]: !(prev[source] ?? false) }))
+  }
+
+  const isSourceOpen = (source: ContextSource) =>
+    query.trim() ? true : (openSources[source] ?? false)
+
   return (
     <section className="section">
-      <div>
-        <h3>Data</h3>
-        <p className="hint">
-          The material Irke draws your answers from. Everything stays in this browser — nothing is
-          uploaded anywhere but your AI provider at draft time.
-        </p>
-      </div>
+      {error && <div className="notice error">{error}</div>}
 
-      <div className="card stack">
-        <div className="row space-between">
-          <h2>Your stories</h2>
-        </div>
-        <p className="hint">
-          The things no document captures: what you were actually trying to do, what went wrong, what
-          you would do differently. One story per entry works best.
-        </p>
-
-        <div>
-          <label htmlFor="story-title">Title</label>
-          <input
-            id="story-title"
-            value={title}
-            placeholder="e.g. The migration that slipped a quarter"
-            onChange={(event) => setTitle(event.target.value)}
-          />
-        </div>
-
-        <div>
-          <label htmlFor="story-text">Story</label>
-          <textarea
-            id="story-text"
-            value={text}
-            rows={8}
-            placeholder="What the situation was, what you personally did, and how it turned out."
-            onChange={(event) => setText(event.target.value)}
-          />
-        </div>
-
+      <div className="row space-between">
+        <h3>Indexed ({query.trim() ? `${visibleCount}/${docs.length}` : docs.length})</h3>
         <div className="row">
-          <button className="primary" onClick={onAdd} disabled={busy !== null}>
-            {busy === 'add' ? 'Indexing…' : 'Add story'}
+          <button className="ghost" onClick={() => setUploadOpen(true)} disabled={busy !== null}>
+            Upload
           </button>
-          <button className="ghost" onClick={() => fileInput.current?.click()} disabled={busy !== null}>
-            {busy === 'upload' ? 'Reading file…' : 'Upload PDF / text'}
+          <button className="primary" onClick={() => void onBuildIndex()} disabled={busy !== null}>
+            {busy === 'index' ? 'Building…' : 'Build context'}
           </button>
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".pdf,.txt,.md,.markdown"
-            hidden
-            onChange={(event) => void onUpload(event.target.files)}
-          />
         </div>
       </div>
+
+      <input
+        id="context-search"
+        type="search"
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        aria-label="Search context"
+      />
+
+      {indexNotice && <div className="notice">{indexNotice}</div>}
 
       <div className="doc-list">
-        <div className="row space-between">
-          <h3>Indexed ({docs.length})</h3>
-          <button className="primary" onClick={() => void onBuildIndex()} disabled={busy !== null}>
-            {busy === 'index' ? 'Building…' : 'Build index'}
-          </button>
-        </div>
-        <p className="hint">
-          Embeddings power semantic retrieval alongside keywords. Needs an OpenAI or OpenRouter API key
-          {chunkCount > 0
-            ? ` — ${embeddedCount}/${chunkCount} chunks embedded.`
-            : '.'}
-        </p>
-        {error && <div className="notice error">{error}</div>}
-        {indexNotice && <div className="notice">{indexNotice}</div>}
-        {docs.length === 0 && (
-          <p className="hint">
-            Nothing indexed yet. Write a story, upload a file, sync a connector, or save an answer from
-            the side panel to start.
-          </p>
-        )}
-        {docs.map((doc) => (
-          <div key={doc.id} className="doc-item">
-            <span className="badge accent">{SOURCE_LABELS[doc.source]}</span>
-            <div className="doc-main">
-              <div className="doc-title">{doc.title}</div>
-              <div className="doc-preview">{doc.text.slice(0, 120)}</div>
+        {grouped.map((group) => {
+          const open = isSourceOpen(group.source)
+          return (
+            <div key={group.source} className="source-group">
+              <button
+                type="button"
+                className="source-group-head"
+                onClick={() => toggleSource(group.source)}
+                aria-expanded={open}
+              >
+                <span className="source-group-chevron" aria-hidden="true">
+                  {open ? '▾' : '▸'}
+                </span>
+                <span className="source-group-label">{group.label}</span>
+                <span className="badge">{group.items.length}</span>
+              </button>
+              {open && (
+                <div className="source-group-body">
+                  {group.items.map((doc) => (
+                    <div key={doc.id} className="doc-item">
+                      <div className="doc-main">
+                        <div className="doc-title">{doc.title}</div>
+                        <div className="doc-preview">{doc.text.slice(0, 120)}</div>
+                      </div>
+                      <button className="ghost danger" onClick={() => onDelete(doc)}>
+                        Remove
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-            <button className="ghost danger" onClick={() => onDelete(doc.id)}>
-              Remove
-            </button>
-          </div>
-        ))}
+          )
+        })}
       </div>
+
+      {uploadOpen && (
+        <div
+          className="picker-backdrop"
+          onClick={(event) => {
+            if (event.target === event.currentTarget && busy === null) closeUpload()
+          }}
+        >
+          <div className="picker-modal stack upload-modal" role="dialog" aria-modal="true">
+            <div className="row space-between">
+              <h2>Upload</h2>
+              <button className="ghost" onClick={closeUpload} disabled={busy !== null}>
+                Close
+              </button>
+            </div>
+
+            {modalError && <div className="notice error">{modalError}</div>}
+
+            <div>
+              <label htmlFor="story-title">Title</label>
+              <input
+                id="story-title"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+              />
+            </div>
+
+            <div className="upload-text-field">
+              <label htmlFor="story-text">Text</label>
+              <textarea
+                id="story-text"
+                className="upload-text"
+                value={text}
+                onChange={(event) => setText(event.target.value)}
+              />
+            </div>
+
+            <div className="row">
+              <button className="primary" onClick={onAdd} disabled={busy !== null}>
+                {busy === 'add' ? 'Saving…' : 'Add Context'}
+              </button>
+              <button
+                className="ghost"
+                onClick={() => fileInput.current?.click()}
+                disabled={busy !== null}
+              >
+                {busy === 'upload' ? 'Reading file…' : 'Upload file'}
+              </button>
+              <input
+                ref={fileInput}
+                type="file"
+                accept=".pdf,.txt,.md,.markdown"
+                hidden
+                onChange={(event) => void onUpload(event.target.files)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </section>
   )
 }
