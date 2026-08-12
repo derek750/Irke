@@ -1,4 +1,6 @@
-import type { DetectedQuestion, StoryTopic } from '@/lib/types'
+import type { DetectedQuestion, JobContext, StoryTopic } from '@/lib/types'
+import { buildExport, exportFilename, toExportEntry, type ExportFormat } from './export'
+import { ExportMenu } from './ExportMenu'
 import type { DraftState } from './useDrafts'
 
 const DRAFT_SOURCE_LABELS: Record<NonNullable<DraftState['source']>, string> = {
@@ -16,6 +18,7 @@ const TOPIC_LABELS: Record<StoryTopic, string> = {
 }
 
 interface QuestionCardProps {
+  job: JobContext
   question: DetectedQuestion
   draft: DraftState | undefined
   expanded: boolean
@@ -27,6 +30,7 @@ interface QuestionCardProps {
 }
 
 export function QuestionCard({
+  job,
   question,
   draft,
   expanded,
@@ -39,6 +43,12 @@ export function QuestionCard({
   const value = draft?.value ?? ''
   const isBusy = draft?.status === 'generating'
   const hasDraft = value.trim().length > 0
+  const entry = toExportEntry(question, value)
+
+  const buildFile = (format: ExportFormat) => ({
+    filename: exportFilename(format, job, question.label),
+    text: buildExport(format, job, [entry]),
+  })
 
   return (
     <article className={`question-card${draft?.status === 'filled' ? ' filled' : ''}`}>
@@ -81,6 +91,12 @@ export function QuestionCard({
             <button className="ghost" disabled={!hasDraft || isBusy} onClick={onSave}>
               Save answer
             </button>
+            <ExportMenu
+              label="Export"
+              disabled={!entry.answer || isBusy}
+              build={buildFile}
+              copyValue={() => entry.answer}
+            />
           </div>
         </div>
       )}

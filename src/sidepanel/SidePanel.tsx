@@ -2,6 +2,9 @@ import { useCallback, useEffect, useState } from 'react'
 
 import { sendToBackground } from '@/lib/messages'
 import type { PageScan } from '@/lib/types'
+import { buildExport, exportFilename, toExportEntry, type ExportFormat } from './export'
+import { ExportMenu } from './ExportMenu'
+import { PageContextCard } from './PageContextCard'
 import { QuestionCard } from './QuestionCard'
 import { useDrafts } from './useDrafts'
 
@@ -36,6 +39,20 @@ export function SidePanel() {
 
   const questions = scan?.questions ?? []
 
+  /** Every detected question, answered or not, so the file doubles as a worksheet. */
+  const buildPacket = useCallback(
+    (scanned: PageScan, format: ExportFormat) => {
+      const entries = scanned.questions.map((question) =>
+        toExportEntry(question, drafts[question.fieldId]?.value),
+      )
+      return {
+        filename: exportFilename(format, scanned.job),
+        text: buildExport(format, scanned.job, entries),
+      }
+    },
+    [drafts],
+  )
+
   return (
     <div className="panel">
       <header className="panel-header">
@@ -45,43 +62,43 @@ export function SidePanel() {
             <button className="ghost" onClick={() => chrome.runtime.openOptionsPage()}>
               Dashboard
             </button>
+            {scan && (
+              <ExportMenu label="Export all" build={(format) => buildPacket(scan, format)} />
+            )}
             <button onClick={runScan} disabled={isScanning}>
               {isScanning ? 'Scanning…' : 'Rescan'}
             </button>
           </div>
         </div>
-
-        {scan && (
-          <p className="job-meta">
-            {scan.job.title || 'Untitled role'}
-            {scan.job.company ? ` · ${scan.job.company}` : ''} · {scan.job.ats}
-          </p>
-        )}
       </header>
 
       <div className="panel-body">
         {scanError && <div className="notice error">{scanError}</div>}
 
+        {scan && <PageContextCard scan={scan} />}
+
         {!scanError && !isScanning && questions.length === 0 && (
           <div className="empty-state">
-            <h2>No story questions</h2>
-            <p>Nothing open-ended detected. Rescan if the form loaded late.</p>
+            <h2>No questions found</h2>
+            <p>Nothing to answer here yet. Rescan if the form loaded late.</p>
           </div>
         )}
 
-        {questions.map((question) => (
-          <QuestionCard
-            key={question.fieldId}
-            question={question}
-            draft={drafts[question.fieldId]}
-            expanded={expanded === question.fieldId}
-            onToggle={() => setExpanded(expanded === question.fieldId ? null : question.fieldId)}
-            onChange={(value) => setValue(question.fieldId, value)}
-            onGenerate={(regenerate) => scan && generate(scan.job, question, regenerate)}
-            onFill={() => scan && fill(question.fieldId, scan.frameId)}
-            onSave={() => scan && save(question, scan.job.company)}
-          />
-        ))}
+        {scan &&
+          scan.questions.map((question) => (
+            <QuestionCard
+              key={question.fieldId}
+              job={scan.job}
+              question={question}
+              draft={drafts[question.fieldId]}
+              expanded={expanded === question.fieldId}
+              onToggle={() => setExpanded(expanded === question.fieldId ? null : question.fieldId)}
+              onChange={(value) => setValue(question.fieldId, value)}
+              onGenerate={(regenerate) => generate(scan.job, question, regenerate)}
+              onFill={() => fill(question.fieldId, scan.frameId)}
+              onSave={() => save(question, scan.job.company)}
+            />
+          ))}
       </div>
 
       <footer className="panel-footer">
