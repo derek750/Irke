@@ -1,12 +1,11 @@
 import { useState, type ReactNode } from 'react'
 
 import { AiTab } from './AiTab'
-import { AnswersTab } from './AnswersTab'
 import { ConnectorsTab } from './ConnectorsTab'
 import { DataTab } from './DataTab'
 import { GenerateTab } from './GenerateTab'
 
-type NavId = 'generate' | 'context' | 'connectors' | 'bank' | 'settings'
+type NavId = 'generate' | 'context' | 'connectors' | 'settings'
 
 type NavItem = { id: NavId; label: string; icon: ReactNode; render: () => ReactNode }
 
@@ -66,29 +65,6 @@ const PRIMARY_NAVS: NavItem[] = [
       </svg>
     ),
     render: () => <ConnectorsTab />,
-  },
-  {
-    id: 'bank',
-    label: 'Bank',
-    icon: (
-      <svg viewBox="0 0 24 24" aria-hidden="true">
-        <path
-          d="M4 8.5 12 4l8 4.5v2H4v-2Z"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinejoin="round"
-        />
-        <path
-          d="M6 10.5V17M10 10.5V17M14 10.5V17M18 10.5V17M4 19h16"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.6"
-          strokeLinecap="round"
-        />
-      </svg>
-    ),
-    render: () => <AnswersTab />,
   },
 ]
 

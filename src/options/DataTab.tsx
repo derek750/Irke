@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { ensureAnswersIndexed, forgetAnswer } from '@/lib/answer-bank'
 import { readUploadedFile } from '@/lib/connectors/sync'
 import { buildContextIndex } from '@/lib/context/build-index'
 import { SOURCE_LABELS } from '@/lib/context/chunk'
@@ -25,7 +26,10 @@ export function DataTab() {
   const refresh = useCallback(() => {
     void listDocs().then(setDocs)
   }, [])
-  useEffect(refresh, [refresh])
+
+  useEffect(() => {
+    void ensureAnswersIndexed().then(refresh)
+  }, [refresh])
 
   const grouped = useMemo(() => {
     const needle = query.trim().toLowerCase()
@@ -49,7 +53,10 @@ export function DataTab() {
       source,
       label: SOURCE_LABELS[source],
       items: map.get(source) ?? [],
-    })).filter((group) => group.items.length > 0)
+    })).filter((group) => {
+      if (group.source === 'generated') return !needle || group.items.length > 0
+      return group.items.length > 0
+    })
   }, [docs, query])
 
   const visibleCount = useMemo(
@@ -118,8 +125,12 @@ export function DataTab() {
     }
   }
 
-  const onDelete = async (docId: string) => {
-    await deleteDocAndChunks(docId)
+  const onDelete = async (doc: ContextDoc) => {
+    if (doc.source === 'generated' && doc.id.startsWith('generated:')) {
+      await forgetAnswer(doc.id.slice('generated:'.length))
+    } else {
+      await deleteDocAndChunks(doc.id)
+    }
     refresh()
   }
 
@@ -208,7 +219,7 @@ export function DataTab() {
                         <div className="doc-title">{doc.title}</div>
                         <div className="doc-preview">{doc.text.slice(0, 120)}</div>
                       </div>
-                      <button className="ghost danger" onClick={() => onDelete(doc.id)}>
+                      <button className="ghost danger" onClick={() => onDelete(doc)}>
                         Remove
                       </button>
                     </div>

@@ -75,12 +75,13 @@ export function GenerateTab() {
 
         <div className="card generate-question-card">
           <div>
-            <label htmlFor="gen-question">Question</label>
+            <h3>Question</h3>
             <textarea
               id="gen-question"
               className="generate-question"
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
+              aria-label="Question"
             />
           </div>
         </div>

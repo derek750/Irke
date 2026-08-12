@@ -83,12 +83,13 @@ export function AiTab() {
 
   return (
     <section className="section">
-      <div>
-        <label htmlFor="generation-mode">Generation mode</label>
+      <div className="stack">
+        <h3>Generation mode</h3>
         <select
           id="generation-mode"
           value={settings.generationMode}
           onChange={(event) => update({ generationMode: event.target.value as GenerationMode })}
+          aria-label="Generation mode"
         >
           {(Object.keys(MODE_LABELS) as GenerationMode[]).map((mode) => (
             <option key={mode} value={mode}>

@@ -1,3 +1,4 @@
+import { rememberAnswer } from '@/lib/answer-bank'
 import { embeddingApiKey, embedTexts, resolveEmbeddingProvider } from '@/lib/context/embed'
 import { retrieve } from '@/lib/context/retrieve'
 import { listChunks } from '@/lib/db'
@@ -61,28 +62,27 @@ export async function generateAnswer({
   })
 
   // Fast mode skips the editor pass — half the latency/cost when iterating.
-  if (settings.generationMode === 'fast') {
-    return {
-      fieldId: question.fieldId,
-      answer: draft,
-      source: 'llm',
-      sources: [...new Set(retrieved.map((entry) => entry.chunk.docTitle))],
-      needsInput: draft.includes(NEEDS_INPUT_MARKER),
+  let answer = draft
+  if (settings.generationMode !== 'fast') {
+    // Pass 2: editor audits the draft against the AI-tell checklist and the
+    // excerpts (copied phrasing, ungrounded claims) and rewrites it.
+    try {
+      answer = await complete({
+        settings,
+        system: buildReviseSystemPrompt(instructions),
+        user: buildReviseUserPrompt({ job, question, retrieved, draft }),
+      })
+    } catch {
+      // A failed polish pass should not throw away a usable draft.
     }
   }
 
-  // Pass 2: editor audits the draft against the AI-tell checklist and the
-  // excerpts (copied phrasing, ungrounded claims) and rewrites it.
-  let answer = draft
-  try {
-    answer = await complete({
-      settings,
-      system: buildReviseSystemPrompt(instructions),
-      user: buildReviseUserPrompt({ job, question, retrieved, draft }),
-    })
-  } catch {
-    // A failed polish pass should not throw away a usable draft.
-  }
+  // Always mirror into Context → Generated (answer bank + index doc).
+  await rememberAnswer({
+    question: question.label,
+    answer,
+    company: job.company,
+  })
 
   return {
     fieldId: question.fieldId,

@@ -82,11 +82,21 @@ export async function ensureAnswersIndexed(): Promise<void> {
   }
 }
 
-function toGeneratedDoc(entry: AnswerBankEntry, createdAt: number): ContextDoc {
-  const title = entry.company.trim()
-    ? `${entry.question} (${entry.company.trim()})`
-    : entry.question
+function titleFromAnswer(answer: string): string {
+  const firstLine =
+    answer
+      .trim()
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line.length > 0) ?? 'Generated answer'
 
+  if (firstLine.length <= 60) return firstLine
+  const clipped = firstLine.slice(0, 60)
+  const lastSpace = clipped.lastIndexOf(' ')
+  return `${(lastSpace > 20 ? clipped.slice(0, lastSpace) : clipped).trimEnd()}…`
+}
+
+function toGeneratedDoc(entry: AnswerBankEntry, createdAt: number): ContextDoc {
   const lines = [
     `Question: ${entry.question}`,
     entry.company.trim() ? `Company: ${entry.company.trim()}` : null,
@@ -97,7 +107,7 @@ function toGeneratedDoc(entry: AnswerBankEntry, createdAt: number): ContextDoc {
   return {
     id: generatedDocId(entry.id),
     source: 'generated',
-    title: title.slice(0, 200),
+    title: titleFromAnswer(entry.answer),
     text: lines.join('\n'),
     createdAt,
     externalId: entry.fingerprint,
