@@ -5,7 +5,7 @@ import { readUploadedFile } from '@/lib/connectors/sync'
 import { buildContextIndex, ensureContextEmbeddings } from '@/lib/context/build-index'
 import { distilledDocId, SOURCE_LABELS } from '@/lib/context/chunk'
 import { distillContext } from '@/lib/context/distill'
-import { deleteDocAndChunks, listChunks, listDocs, saveDoc } from '@/lib/db'
+import { chunkCoverage, deleteDocAndChunks, listDocs, saveDoc } from '@/lib/db'
 import { errorMessage } from '@/lib/messages'
 import type { ContextDoc, ContextSource } from '@/lib/types'
 
@@ -27,12 +27,7 @@ export function DataTab() {
 
   const refresh = useCallback(() => {
     void listDocs().then(setDocs)
-    void listChunks().then((chunks) =>
-      setCoverage({
-        embedded: chunks.filter((chunk) => chunk.embedding?.length).length,
-        total: chunks.length,
-      }),
-    )
+    void chunkCoverage().then(setCoverage)
   }, [])
 
   /** New material embeds itself in the background; refresh again once it lands. */
@@ -50,10 +45,14 @@ export function DataTab() {
   }, [refresh])
 
   // Answers generated in the side panel land in IndexedDB from the service worker while this
-  // page sits open. Nothing pushes that change here, so refetch whenever the user comes back.
+  // page sits open. Nothing pushes that change here, so refetch when the user comes back.
+  const lastRefreshRef = useRef(0)
   useEffect(() => {
     const onVisible = () => {
-      if (document.visibilityState === 'visible') refresh()
+      if (document.visibilityState !== 'visible') return
+      if (Date.now() - lastRefreshRef.current < 2000) return
+      lastRefreshRef.current = Date.now()
+      refresh()
     }
     window.addEventListener('focus', onVisible)
     document.addEventListener('visibilitychange', onVisible)

@@ -7,6 +7,7 @@ Manifest V3 service worker. Owns multi-frame scanning, answer generation, fill r
 | File | Responsibility |
 |------|----------------|
 | `index.ts` | Message router, install hook (open options + side-panel-on-action), `scanTab`, `activeTabId` |
+| `scan-frames.ts` | Which iframes to inject/scan (ATS first, ads last, cap 10) |
 | `generate.ts` | Retrieve → LLM (draft; optional revise when polished); returns `GeneratedAnswer` |
 | `letterhead.ts` | Reads the candidate's name out of the context index when the Letterhead setting is blank |
 
@@ -14,12 +15,15 @@ Manifest V3 service worker. Owns multi-frame scanning, answer generation, fill r
 
 ### Scan (`bg:scanActiveTab`)
 
-1. Fire `ensureContextEmbeddings()` (not awaited) — anything unembedded gets vectors while the user is still reading the scan, so the first Generate already runs hybrid.
-2. Resolve the active tab id.
-3. `chrome.webNavigation.getAllFrames` → scan every frame via `content:scan`.
-4. Pick the frame with the most detected questions.
-5. If that frame's JD text is thin, borrow job context from the top frame (`frameId === 0`).
-6. Attach the winning `frameId` onto `PageScan` so later fills hit the same document.
+1. Resolve the active tab id.
+2. `chrome.webNavigation.getAllFrames` → `selectScanFrames` (`scan-frames.ts`): top frame + ATS / same-origin form frames, skip ads/analytics/CAPTCHA, cap at 10. A job page with 40 tracker iframes must not inject or message all of them.
+3. Inject the content script only into those frame ids (`chrome.scripting.executeScript`, the `?script&iife` build imported as `contentScript`). There is no static content script — this is the only way it reaches a page, a guard inside makes re-injection a no-op, and the IIFE registers its listener before `executeScript` resolves so the scan message cannot race it.
+4. `content:scan` those frames.
+5. Pick the frame with the most detected questions.
+6. If that frame's JD text is thin, borrow job context from the top frame (`frameId === 0`).
+7. Attach the winning `frameId` onto `PageScan` so later fills hit the same document.
+
+Embedding backfill does **not** run on scan — loading the chunk store (vectors included) competed with the scan for the worker and froze the machine. `ensureContextEmbeddings()` still runs after generate / save-answer, and from the options page after ingest. An already-current index is a count, not a full read.
 
 ### Generate (`bg:generate`)
 
@@ -44,7 +48,7 @@ A regenerate has two meanings, split by `currentDraft`. When the panel sends it 
 
 Listing all of them, not just the newest, is what stops attempt three from circling back to attempt one.
 
-After the answer is banked, the handler fires `ensureContextEmbeddings()` (as does `bg:saveAnswer`) so the new `generated` chunks get vectors immediately. When the index **has** vectors but the query embed fails, the draft still ships on keyword retrieval and carries `degradedRetrieval: true`, which the panel renders as a **Keyword only** badge — an index with no vectors at all is normal keyword mode, not a degradation.
+After the answer is banked, the handler fires `ensureContextEmbeddings()` (as does `bg:saveAnswer`) so the new `generated` chunks get vectors. When the index is already current this is two IndexedDB counts; when a handful of chunks are new it keyed-reads those instead of cloning every vector. When the index **has** vectors but the query embed fails, the draft still ships on keyword retrieval and carries `degradedRetrieval: true`, which the panel renders as a **Keyword only** badge — an index with no vectors at all is normal keyword mode, not a degradation.
 
 Context syncing does **not** happen here. Drive and GitHub sync from the options page, where a DOM is available for PDF parsing and the worker cannot be evicted mid-run.
 

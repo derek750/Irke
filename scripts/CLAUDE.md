@@ -3,7 +3,7 @@
 Dev-only utilities. Not shipped in the extension bundle.
 
 ```bash
-npm run smoke # both scripts below
+npm run smoke # retrieval + detect + prompt + generate + scan-frames
 ```
 
 ## `smoke-retrieval.ts`
@@ -56,5 +56,13 @@ npm run smoke:detect
 ```
 
 Use after changing the patterns in `detect.ts`, and add cases alongside any new pattern. This is the only guard against the two silent failure modes: over-filtering (the panel detects nothing) and under-filtering (Irke starts trying to answer "what is your phone number").
+
+## `smoke-scan-frames.ts`
+
+Asserts `selectScanFrames` keeps the top frame, a Greenhouse embed, a same-origin form, and a top-level `about:blank` shell, drops ads/analytics/YouTube, and stays under the cap.
+
+```bash
+npm run smoke:scan-frames
+```
 
 Do not put production logic here. Keep the scripts dependency-light (esbuild-bundled via the npm scripts).

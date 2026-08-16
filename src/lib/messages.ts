@@ -75,7 +75,7 @@ export async function sendToTab(
   } catch {
     return {
       ok: false,
-      error: 'Cannot reach this page. Reload the tab after installing Irke, then try again.',
+      error: 'Cannot reach this page — rescan to reconnect. Some pages (Chrome pages, the Web Store) never allow extensions.',
     }
   }
 }

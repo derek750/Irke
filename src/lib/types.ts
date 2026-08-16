@@ -53,8 +53,12 @@ export interface ContextChunk {
   text: string
   /** Lowercased token counts, precomputed at ingest so retrieval stays cheap. */
   tokens: Record<string, number>
-  /** OpenAI embedding vector; filled by Build index. Absent until then — BM25 still works. */
-  embedding?: number[]
+  /**
+   * OpenAI embedding vector; filled by auto-embed / Build context. Absent until then — BM25
+   * still works. New writes store `Float32Array` (half the memory and clone cost of `number[]`
+   * on every chunk read); chunks embedded before that change still hold plain arrays.
+   */
+  embedding?: number[] | Float32Array
   embeddedAt?: number
 }
 

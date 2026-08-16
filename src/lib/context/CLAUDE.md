@@ -27,7 +27,7 @@ Chunking packs paragraphs toward ~900 chars (hard wrap ~1400) so one story tends
 2. Embed chunks missing `embedding` (or all, if `rebuild: true`)
 3. `putChunks` with `embedding` + `embeddedAt`
 
-`ensureContextEmbeddings()` is the quiet wrapper (returns `null` instead of throwing) that keeps the index current without anyone clicking anything: the background worker fires it on scan and after generate / save-answer, and the options page fires it after adding a story, uploading a file, and finishing a Drive or GitHub sync. **Build context** on the Data tab calls `buildContextIndex()` directly and reports; it remains the backfill for corpora ingested before auto-embed existed and the manual rebuild.
+`ensureContextEmbeddings()` is the quiet wrapper (returns `null` instead of throwing) that keeps the index current without anyone clicking anything: the background worker fires it after generate / save-answer (not on scan — that read competed with injecting the page), and the options page fires it after adding a story, uploading a file, and finishing a Drive or GitHub sync. When every chunk already has `embeddedAt`, this is two counts. **Build context** on the Data tab calls `buildContextIndex()` directly and reports; it remains the backfill for corpora ingested before auto-embed existed and the manual rebuild.
 
 Anthropic has no embeddings API — with an Anthropic-only setup every auto-embed quietly declines and retrieval stays keyword-only. Generation falls back to BM25-only if the query embed fails, and flags the draft with `GeneratedAnswer.degradedRetrieval` when vectors existed but could not be used.
 

@@ -55,7 +55,7 @@ Footer copy: **"Irke never submits for you"** — keep that invariant in UX and 
 
 ## Pitfalls
 
-- After extension reload, the content script is gone until the tab is refreshed — surface the background's "reload the tab" error as-is.
+- The content script is injected at scan time. If a fill/attach cannot reach the page (navigation since the scan, or a page Chrome refuses), surface the background's "rescan to reconnect" error as-is — rescanning re-injects.
 - `scan` can be null; guard `frameId` / `job` before fill/save (already done — keep it that way).
 - Saving indexes a prior draft; generation always calls the LLM (no answer-bank paste).
 - `commit` runs on blur, so an edit made and then abandoned without leaving the textarea is not banked.

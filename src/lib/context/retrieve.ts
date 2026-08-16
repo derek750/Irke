@@ -39,6 +39,13 @@ const STEER_PINS = 2
  * "Disagreement") without flipping the top hit of any query that already worked.
  */
 const VARIANT_DISCOUNT = 0.5
+/**
+ * Only parts at or above this weight expand into variant families. The job description rides at
+ * weight 1 purely as supporting vocabulary — inflating its ~90 terms ~27× made every retrieve
+ * pay for ~2,500 query terms (measured 415 ms on a 2,100-chunk corpus). The parts variants exist
+ * to bridge — the question, the steer, a base draft — all carry weight 2 or more.
+ */
+const VARIANT_MIN_WEIGHT = 2
 
 /** Deliberately written stories beat incidental material scraped from Drive or a repo. */
 const SOURCE_BOOST: Record<ContextSource, number> = {
@@ -111,11 +118,14 @@ export function retrieve(
 ): RetrievedChunk[] {
   const corpus = includeGenerated ? chunks : chunks.filter((chunk) => chunk.source !== 'generated')
 
+  // Weight 2 so the steer's terms expand into variant families (scores within this query are
+  // relative, so the value itself changes nothing about which pins win).
   const trimmedSteer = steer?.trim()
   const pinned = trimmedSteer
-    ? retrieveBm25(trimmedSteer, corpus, { limit: Math.min(STEER_PINS, limit), minScore }).map(
-        (entry) => ({ ...entry, steered: true }),
-      )
+    ? retrieveBm25([{ text: trimmedSteer, weight: VARIANT_MIN_WEIGHT }], corpus, {
+        limit: Math.min(STEER_PINS, limit),
+        minScore,
+      }).map((entry) => ({ ...entry, steered: true }))
     : []
 
   const bm25 = retrieveBm25(query, corpus, { limit: CANDIDATE_POOL, minScore })
@@ -213,7 +223,7 @@ function selectWindow(ranked: RetrievedChunk[], limit: number, rotate: number): 
   return [...ranked.slice(0, ANCHORS), ...rotated.slice(0, span)]
 }
 
-export function cosineSimilarity(a: number[], b: number[]): number {
+export function cosineSimilarity(a: ArrayLike<number>, b: ArrayLike<number>): number {
   if (a.length !== b.length || !a.length) return 0
 
   let dot = 0
@@ -242,16 +252,24 @@ function retrieveBm25(
   const lengths = chunks.map((chunk) => sumValues(chunk.tokens))
   const averageLength = lengths.reduce((total, length) => total + length, 0) / chunks.length || 1
 
+  // One pass over the corpus counts document frequency for every query term at once. Scanning
+  // the corpus per term instead is queryTerms × chunks — with variant families in the query,
+  // that alone was hundreds of milliseconds at a few thousand chunks.
   const documentFrequency = new Map<string, number>()
-  for (const term of queryTerms.keys()) {
-    let count = 0
-    for (const chunk of chunks) if (chunk.tokens[term]) count += 1
-    documentFrequency.set(term, count)
+  for (const chunk of chunks) {
+    for (const term in chunk.tokens) {
+      if (queryTerms.has(term)) {
+        documentFrequency.set(term, (documentFrequency.get(term) ?? 0) + 1)
+      }
+    }
   }
+
+  // Terms in no chunk (most generated variants) can never score; drop them before the loop.
+  const activeTerms = [...queryTerms].filter(([term]) => documentFrequency.has(term))
 
   const scored = chunks.map((chunk, index) => {
     let score = 0
-    for (const [term, weight] of queryTerms) {
+    for (const [term, weight] of activeTerms) {
       const frequency = chunk.tokens[term]
       if (!frequency) continue
 
@@ -311,9 +329,11 @@ function reciprocalRankFusion(
 /**
  * Term → weight, taking the highest weight any part gave it. Deliberately not a sum: a word that
  * appears forty times in the job description should not outrank a word from the question itself.
- * Each term also contributes its morphological family at `VARIANT_DISCOUNT` of its weight, so
- * "disagreed" finds a chunk that only says "disagreement" — stored tokens are exact words and
- * cannot be stemmed without a migration, so the bridging happens here, on the query side.
+ * Parts at `VARIANT_MIN_WEIGHT` and above also contribute their morphological families at
+ * `VARIANT_DISCOUNT` of their weight, so "disagreed" finds a chunk that only says "disagreement"
+ * — stored tokens are exact words and cannot be stemmed without a migration, so the bridging
+ * happens here, on the query side. Weight-1 parts (the job description) stay unexpanded: they
+ * are supporting vocabulary, and their variant families were most of the query's cost.
  */
 function weighQueryTerms(query: Query): Map<string, number> {
   const parts = toParts(query)
@@ -322,8 +342,10 @@ function weighQueryTerms(query: Query): Map<string, number> {
     weights.set(term, Math.max(weights.get(term) ?? 0, weight))
 
   for (const part of parts) {
+    const expand = part.weight >= VARIANT_MIN_WEIGHT
     for (const term of tokenize(part.text)) {
       bump(term, part.weight)
+      if (!expand) continue
       for (const variant of termVariants(term)) bump(variant, part.weight * VARIANT_DISCOUNT)
     }
   }

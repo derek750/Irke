@@ -26,7 +26,19 @@ const SUFFIXES = ['s', 'es', 'ed', 'd', 'ing', 'ings', 'ment', 'ments', 'er', 'e
  * no chunk cost a document-frequency lookup and nothing else. Irregular forms (won/win) are out
  * of reach by design — that is what embeddings are for.
  */
+const variantCache = new Map<string, Set<string>>()
+const VARIANT_CACHE_LIMIT = 4000
+
 export function termVariants(term: string): Set<string> {
+  const cached = variantCache.get(term)
+  if (cached) return cached
+  if (variantCache.size >= VARIANT_CACHE_LIMIT) variantCache.clear()
+  const family = computeVariants(term)
+  variantCache.set(term, family)
+  return family
+}
+
+function computeVariants(term: string): Set<string> {
   const family = new Set<string>()
   if (!/^[a-z]+$/.test(term)) return family
 

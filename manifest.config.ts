@@ -39,12 +39,8 @@ export default defineManifest({
     service_worker: 'src/background/index.ts',
     type: 'module',
   },
-  content_scripts: [
-    {
-      matches: ['<all_urls>'],
-      js: ['src/content/index.ts'],
-      run_at: 'document_idle',
-      all_frames: true,
-    },
-  ],
+  // No static content_scripts on purpose. A persistent script in every frame of every page is
+  // the classic extension performance sink (each ad iframe pays an isolated world + script
+  // instantiation), and Irke only ever needs the page at scan time — the background injects
+  // `src/content/index.ts` on demand with chrome.scripting when the user scans.
 })

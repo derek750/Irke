@@ -7,7 +7,7 @@ Chrome extension source. Four surfaces share one TypeScript package via path ali
 | Surface | Entry | Runs in |
 |---------|-------|---------|
 | Background | `background/index.ts` | Extension service worker |
-| Content | `content/index.ts` | Every frame on `<all_urls>` |
+| Content | `content/index.ts` | Injected on demand at scan time (selected frames of the scanned tab) — no static registration |
 | Side panel | `sidepanel/main.tsx` | Extension side panel |
 | Options | `options/main.tsx` | Extension options page |
 
@@ -48,7 +48,7 @@ as `source: 'generated'` (`[PRIOR DRAFT]`); editing a draft re-banks it on blur.
 `AnswerBankEntry.versions` rather than overwriting, so no attempt is lost to another click, but only the
 current answer is mirrored into the index. Those chunks only enter retrieval
 when Settings.`includeGeneratedInRag` is on (off by default). Embeddings maintain themselves:
-`ensureContextEmbeddings()` runs after every ingest path and on scan whenever an OpenAI or
+`ensureContextEmbeddings()` runs after every ingest path and after generate / save-answer whenever an OpenAI or
 OpenRouter key is set, so **Build context** on the Data tab is a backfill/rebuild, not a
 prerequisite.
 

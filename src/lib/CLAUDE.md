@@ -25,7 +25,7 @@ Shared domain logic used by background, content (types/messages only), side pane
 - Cached letterhead name: `irke:letterheadName`
 - IndexedDB stores: `context_docs`, `context_chunks` (optional `embedding` on chunks after Build index), `answer_bank`
 
-Schema upgrades go through `DB_VERSION` + `onupgradeneeded` in `db.ts`. Bump the version when adding stores or indexes. v2 dropped the v1 `brain_docs` / `brain_chunks` stores outright — their records carried the retired profile-era shape.
+Schema upgrades go through `DB_VERSION` + `onupgradeneeded` in `db.ts`. Bump the version when adding stores or indexes. v2 dropped the v1 `brain_docs` / `brain_chunks` stores outright — their records carried the retired profile-era shape. v4 adds an `embeddedAt` index on chunks so coverage and auto-embed can count/fetch missing vectors without cloning every embedding into JS.
 
 ## Connectors
 

@@ -45,7 +45,7 @@ npm run typecheck
 npm run smoke # retrieval, question-detection, prompt-contract, and generate-pipeline checks
 ```
 
-Load in Chrome: `chrome://extensions` → Developer mode → **Load unpacked** → select `dist/`. After code changes that touch the content script, reload the extension **and** the job application tab.
+Load in Chrome: `chrome://extensions` → Developer mode → **Load unpacked** → select `dist/`. The content script is injected at scan time (nothing persistent runs in pages), so after reloading the extension a **Rescan** in the panel is enough — no tab refresh needed.
 
 For the Google Drive connection, copy `.env.example` to `.env.local` and add a Google OAuth client id (application type: Chrome Extension) tied to your unpacked extension's id. Everything else works without it.
 
@@ -53,10 +53,10 @@ For the Google Drive connection, copy `.env.example` to `.env.local` and add a G
 
 ```
 Job page
- └── content script (all frames)
+ └── content script (injected on scan, selected frames of that tab)
  ├── scrape JD / company / title
  ├── detect story questions (drop every specific)
- └── fill controlled inputs
+ └── fill controlled inputs / attach the PDF
  ▲
  │ chrome.tabs.sendMessage
  │

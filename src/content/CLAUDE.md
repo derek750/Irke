@@ -1,6 +1,6 @@
 # `src/content/`
 
-Content scripts injected into every frame (`all_frames: true`, `document_idle`). Pure DOM work: scrape the job, detect the story questions, write drafts into controlled inputs.
+The page-side script. **Not statically registered** — a persistent script in every frame of every page is a machine-wide tax (each ad iframe pays an isolated world plus instantiation), so the background injects `index.ts` with `chrome.scripting.executeScript` into the frames `selectScanFrames` picked (`?script&iife` build) when the user scans. Ads, analytics, and CAPTCHA iframes are skipped; at most 10 frames. A `window.__irkeContentReady` guard makes repeat injections a no-op, and every rescan ships the current build — no tab refresh after updating the extension. Pure DOM work: scrape the job, detect the story questions, write drafts into controlled inputs, attach the cover-letter PDF.
 
 ## Files
 
