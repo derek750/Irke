@@ -13,7 +13,7 @@ Side panel React UI. Opened from the toolbar action (`sidePanel.setPanelBehavior
 | `CopyButton.tsx` | Copies the current answer, with transient "Copied" feedback |
 | `ExportButton.tsx` | Ghost button: download the cover-letter PDF (a copy, or the fallback when attaching fails) |
 | `cover-letter.ts` | Reads the letterhead (resolving a blank name via the background) and builds the PDF |
-| `export.ts` | Filename slugs, PDF blob download, base64 for the attach message, clipboard |
+| `export.ts` | Filename (`{company} cover letter.pdf`), PDF blob download, base64 for the attach message, clipboard |
 | `useDrafts.ts` | Draft map keyed by `fieldId`; wraps background messages |
 | `sidepanel.css` | Panel layout |
 
