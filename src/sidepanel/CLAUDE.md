@@ -10,6 +10,8 @@ Side panel React UI. Opened from the toolbar action (`sidePanel.setPanelBehavior
 | `SidePanel.tsx` | Scan, question list, footer |
 | `PageContextCard.tsx` | Collapsible card showing what the scan picked up, including the full JD text |
 | `QuestionCard.tsx` | Per-question accordion: draft textarea, collapsible extra instructions, generate / fill or attach / copy / download |
+| `AddQuestion.tsx` | Collapsed **+ Add a question** composer: question text + optional prompt |
+| `manual.ts` | `manual:` field ids for typed questions; `createManualQuestion` (topic via `classifyLabel`), `isManualField` |
 | `CopyButton.tsx` | Copies the current answer, with transient "Copied" feedback |
 | `ExportButton.tsx` | Ghost button: download the cover-letter PDF (a copy, or the fallback when attaching fails) |
 | `cover-letter.ts` | Reads the letterhead (resolving a blank name via the background) and builds the PDF |
@@ -23,7 +25,10 @@ Shared theme tokens come from `ui/theme.css`.
 
 - **Scan** — `PageScan | null` from `bg:scanActiveTab` (includes `frameId`)
 - **Drafts** — `Record<fieldId, DraftState>` via `useDrafts`; `history` holds this session's attempts for the version stepper and the do-not-repeat list
+- **Manual** — `DetectedQuestion[]` the user typed, rendered after the page's own questions
 - **Expanded** — one open question card at a time
+
+`reset(keep?)` clears the drafts a rescan invalidated. The panel passes `isManualField`, so a rescan drops the page's drafts (its field ids are reassigned anyway) and leaves typed questions, their prompts, and their drafts alone. Manual state lives in `SidePanel`, never in `scan`, so `runScan` stays referentially stable — the mount effect depends on it.
 
 `DraftState.status`: `idle` → `generating` → `ready` → `filled`.
 
@@ -42,7 +47,9 @@ There is no filter. Detection already drops everything Irke will not answer, so 
 7. Copy → the bare answer for that question, for pasting into the form yourself.
 8. Download → cover letters only: the typeset PDF, built in the panel from `lib/documents/cover-letter.ts`.
 
-A question whose `control` is `'file'` shows **Attach PDF** in place of **Fill field** — the draft is typeset and set on the input on your click, never on generate.
+9. Add a question → **+ Add a question** at the end of the list takes a question and an optional prompt. The question becomes an ordinary card (`manual:{n}` field id, topic from `classifyLabel` so a typed "Cover letter" still gets letter length and a PDF) and the prompt seeds that card's `steer`, so it reaches retrieval and both prompt passes like any other direction. Works with no scan at all (`NO_JOB`, `ats: 'manual'`), which is the point on a page Irke cannot read — the JD is simply absent from the query. Cards carry an **Added by you** badge and a **Remove** button.
+
+A question whose `control` is `'file'` shows **Attach PDF** in place of **Fill field** — the draft is typeset and set on the input on your click, never on generate. `onFill` / `onAttach` are optional props: a typed question has no control behind it, so neither button renders and nothing can target `manual:{n}` on the page.
 
 Footer copy: **"Irke never submits for you"** — keep that invariant in UX and code.
 

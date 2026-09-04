@@ -25,6 +25,8 @@ const TOPIC_LABELS: Record<StoryTopic, string> = {
 interface QuestionCardProps {
   job: JobContext
   question: DetectedQuestion
+  /** Typed into the panel rather than found on the page: no field behind it, removable. */
+  manual?: boolean
   draft: DraftState | undefined
   expanded: boolean
   onToggle: () => void
@@ -33,9 +35,12 @@ interface QuestionCardProps {
   onGenerate: (regenerate: boolean) => void
   /** Swaps the textarea to an earlier attempt from this session. */
   onShowVersion: (index: number) => void
-  onFill: () => void
+  /** Absent when there is no page control to write to (a typed question, or no scan). */
+  onFill?: () => void
   /** Uploads only: typeset the answer as a PDF and set it on the page's file input. */
-  onAttach: (body: string) => void
+  onAttach?: (body: string) => void
+  /** Typed questions only — drops the card. */
+  onRemove?: () => void
   /** Banks an edited draft; the generated text is already saved by the pipeline. */
   onCommit: () => void
 }
@@ -43,6 +48,7 @@ interface QuestionCardProps {
 export function QuestionCard({
   job,
   question,
+  manual,
   draft,
   expanded,
   onToggle,
@@ -52,6 +58,7 @@ export function QuestionCard({
   onShowVersion,
   onFill,
   onAttach,
+  onRemove,
   onCommit,
 }: QuestionCardProps) {
   const [steerOpen, setSteerOpen] = useState(false)
@@ -82,6 +89,7 @@ export function QuestionCard({
 
       <div className="question-tags">
         <span className="badge">{TOPIC_LABELS[question.topic]}</span>
+        {manual && <span className="badge">Added by you</span>}
         {question.required && <span className="badge warning">Required</span>}
         {question.maxLength && <span className="badge">{question.maxLength} char max</span>}
         {draft?.source && <span className="badge accent">{DRAFT_SOURCE_LABELS[draft.source]}</span>}
@@ -157,11 +165,12 @@ export function QuestionCard({
             <button className="primary" disabled={isBusy} onClick={() => onGenerate(hasDraft)}>
               {isBusy ? 'Drafting…' : hasDraft ? (isEdited ? 'Refine' : 'Regenerate') : 'Generate'}
             </button>
-            {isUpload ? (
+            {isUpload && onAttach && (
               <button disabled={!answer || isBusy} onClick={() => onAttach(answer)}>
                 Attach PDF
               </button>
-            ) : (
+            )}
+            {!isUpload && onFill && (
               <button disabled={!hasDraft || isBusy} onClick={onFill}>
                 Fill field
               </button>
@@ -169,6 +178,11 @@ export function QuestionCard({
             <CopyButton value={() => answer} disabled={!answer || isBusy} />
             {question.topic === 'cover_letter' && (
               <ExportButton disabled={!answer || isBusy} build={buildFile} />
+            )}
+            {onRemove && (
+              <button className="ghost danger" disabled={isBusy} onClick={onRemove}>
+                Remove
+              </button>
             )}
           </div>
         </div>

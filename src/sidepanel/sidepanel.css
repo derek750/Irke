@@ -97,6 +97,23 @@
   gap: 6px;
 }
 
+.add-question-toggle {
+  align-self: flex-start;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+/* The composer is a card with no header, so it needs neither the rule nor the answer-sized box. */
+.add-question .question-body {
+  border-top: none;
+  padding-top: 11px;
+}
+
+.add-question textarea {
+  min-height: 0;
+  font-size: 12px;
+}
+
 /* Reads as a subheader for the list rather than another thing to answer. */
 .context-card .question-label {
   color: var(--text-muted);

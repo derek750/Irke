@@ -17,6 +17,8 @@ Shared code lives under `lib/` and `ui/`. UI surfaces are React 19 + Vite; backg
 
 Irke answers **story questions only** — cover letters, "tell us about a time", "why this company", "what are you proud of". It deliberately does not touch name, email, phone, salary, start date, work authorization, or demographics. There is no profile and no autofill of specifics. `content/detect.ts` drops those fields before they ever reach the UI.
 
+The panel also takes questions **typed by hand** (`sidepanel/manual.ts`), for a question the scan missed or a page it could not read. That is not autofill by another name: a typed question gets a `manual:` field id, no page control is behind it, and fill / attach are not even rendered for it — the draft only ever lives in the panel, to copy or download.
+
 A cover-letter **file upload** counts as a story question, since Irke can typeset that document (`lib/documents/cover-letter.ts`). It carries `control: 'file'`: the panel drafts it, and on an explicit **Attach PDF** click the content script sets the generated PDF on that input (`content:attach`) — the one file control Irke writes, user-initiated only, never submitted. Contact details for the letterhead live in Settings and are used only to typeset the document — never typed into a form.
 
 ## Message protocol

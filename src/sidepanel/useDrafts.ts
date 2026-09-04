@@ -48,7 +48,16 @@ export function useDrafts() {
     }))
   }, [])
 
-  const reset = useCallback(() => setDrafts({}), [])
+  /**
+   * Clears the drafts a rescan invalidated. `keep` survives it — the panel uses that for
+   * questions the user typed, which no page field backs and no rescan can stale.
+   */
+  const reset = useCallback((keep?: (fieldId: string) => boolean) => {
+    setDrafts((current) => {
+      if (!keep) return {}
+      return Object.fromEntries(Object.entries(current).filter(([fieldId]) => keep(fieldId)))
+    })
+  }, [])
 
   const setValue = useCallback(
     (fieldId: string, value: string) => patch(fieldId, { value, status: 'ready', error: null }),
