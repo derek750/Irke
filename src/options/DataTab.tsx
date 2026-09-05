@@ -2,16 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { ensureAnswersIndexed, forgetAnswer } from '@/lib/answer-bank'
 import { readUploadedFile } from '@/lib/connectors/sync'
-import { buildContextIndex } from '@/lib/context/build-index'
-import { SOURCE_LABELS } from '@/lib/context/chunk'
-import { deleteDocAndChunks, listDocs, saveDoc } from '@/lib/db'
+import { buildContextIndex, ensureContextEmbeddings } from '@/lib/context/build-index'
+import { distilledDocId, SOURCE_LABELS } from '@/lib/context/chunk'
+import { distillContext } from '@/lib/context/distill'
+import { chunkCoverage, deleteDocAndChunks, listDocs, saveDoc } from '@/lib/db'
 import { errorMessage } from '@/lib/messages'
 import type { ContextDoc, ContextSource } from '@/lib/types'
 
-const SOURCE_ORDER: ContextSource[] = ['story', 'document', 'drive', 'github', 'generated']
+const SOURCE_ORDER: ContextSource[] = ['story', 'document', 'drive', 'github', 'distilled', 'generated']
 
 export function DataTab() {
   const [docs, setDocs] = useState<ContextDoc[]>([])
+  const [coverage, setCoverage] = useState<{ embedded: number; total: number } | null>(null)
   const [title, setTitle] = useState('')
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -25,10 +27,39 @@ export function DataTab() {
 
   const refresh = useCallback(() => {
     void listDocs().then(setDocs)
+    void chunkCoverage().then(setCoverage)
   }, [])
 
+  /** New material embeds itself in the background; refresh again once it lands. */
+  const autoEmbed = useCallback(() => {
+    void ensureContextEmbeddings().then((result) => {
+      if (result?.embedded) refresh()
+    })
+  }, [refresh])
+
   useEffect(() => {
-    void ensureAnswersIndexed().then(refresh)
+    // Refresh even if the backfill fails — an error there should not leave the tab blank.
+    void ensureAnswersIndexed()
+      .catch(() => {})
+      .then(refresh)
+  }, [refresh])
+
+  // Answers generated in the side panel land in IndexedDB from the service worker while this
+  // page sits open. Nothing pushes that change here, so refetch when the user comes back.
+  const lastRefreshRef = useRef(0)
+  useEffect(() => {
+    const onVisible = () => {
+      if (document.visibilityState !== 'visible') return
+      if (Date.now() - lastRefreshRef.current < 2000) return
+      lastRefreshRef.current = Date.now()
+      refresh()
+    }
+    window.addEventListener('focus', onVisible)
+    document.addEventListener('visibilitychange', onVisible)
+    return () => {
+      window.removeEventListener('focus', onVisible)
+      document.removeEventListener('visibilitychange', onVisible)
+    }
   }, [refresh])
 
   const grouped = useMemo(() => {
@@ -90,6 +121,7 @@ export function DataTab() {
       })
       closeUpload()
       refresh()
+      autoEmbed()
     } catch (caught) {
       setModalError(errorMessage(caught))
     } finally {
@@ -117,6 +149,7 @@ export function DataTab() {
       })
       closeUpload()
       refresh()
+      autoEmbed()
     } catch (caught) {
       setModalError(errorMessage(caught))
     } finally {
@@ -130,8 +163,37 @@ export function DataTab() {
       await forgetAnswer(doc.id.slice('generated:'.length))
     } else {
       await deleteDocAndChunks(doc.id)
+      // Notes condensed from this document go with it (a no-op when none exist).
+      await deleteDocAndChunks(distilledDocId(doc.id))
     }
     refresh()
+  }
+
+  const onDistill = async () => {
+    setError(null)
+    setIndexNotice(null)
+    setBusy('distill')
+    try {
+      const result = await distillContext()
+      refresh()
+      autoEmbed()
+      if (result.total === 0) {
+        setIndexNotice('Nothing to distill yet.')
+        return
+      }
+      const parts = [
+        result.distilled
+          ? `Distilled ${result.distilled} document${result.distilled === 1 ? '' : 's'}`
+          : 'Notes already up to date',
+        result.skipped ? `${result.skipped} skipped` : null,
+        result.pruned ? `${result.pruned} orphaned note${result.pruned === 1 ? '' : 's'} removed` : null,
+      ].filter(Boolean)
+      setIndexNotice(`${parts.join(' · ')}. One model call per document.`)
+    } catch (caught) {
+      setError(errorMessage(caught))
+    } finally {
+      setBusy(null)
+    }
   }
 
   const onBuildIndex = async () => {
@@ -178,11 +240,27 @@ export function DataTab() {
           <button className="ghost" onClick={() => setUploadOpen(true)} disabled={busy !== null}>
             Upload
           </button>
+          <button
+            className="ghost"
+            onClick={() => void onDistill()}
+            disabled={busy !== null}
+            title="One model call per document: condenses each into typed story notes that behavioral questions can find."
+          >
+            {busy === 'distill' ? 'Distilling…' : 'Distill stories'}
+          </button>
           <button className="primary" onClick={() => void onBuildIndex()} disabled={busy !== null}>
             {busy === 'index' ? 'Building…' : 'Build context'}
           </button>
         </div>
       </div>
+
+      {coverage && coverage.total > 0 && (
+        <div className="hint">
+          Semantic index: {coverage.embedded === coverage.total
+            ? `all ${coverage.total} excerpts embedded.`
+            : `${coverage.embedded} of ${coverage.total} excerpts embedded.`}
+        </div>
+      )}
 
       <input
         id="context-search"

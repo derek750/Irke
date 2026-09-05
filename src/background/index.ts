@@ -1,7 +1,12 @@
+import contentScript from '@/content/index?script&iife'
+
 import { rememberAnswer } from '@/lib/answer-bank'
+import { ensureContextEmbeddings } from '@/lib/context/build-index'
 import type { BackgroundRequest, BackgroundResponse } from '@/lib/messages'
 import { errorMessage, sendToTab } from '@/lib/messages'
 import { generateAnswer } from './generate'
+import { resolveLetterheadName } from './letterhead'
+import { selectScanFrames } from './scan-frames'
 
 chrome.runtime.onInstalled.addListener(async ({ reason }) => {
   await chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {})
@@ -30,7 +35,12 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
         question: request.question,
         regenerate: request.regenerate,
         extraInstructions: request.extraInstructions,
+        steer: request.steer,
+        previousAnswers: request.previousAnswers,
+        currentDraft: request.currentDraft,
       })
+      // The draft was just banked as a `generated` doc; give its chunks vectors right away.
+      void ensureContextEmbeddings()
       return { ok: true, type: 'generate', result }
     }
 
@@ -45,9 +55,30 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
       return { ok: true, type: 'fill' }
     }
 
+    case 'bg:attach': {
+      const tabId = await activeTabId()
+      const response = await sendToTab(
+        tabId,
+        {
+          type: 'content:attach',
+          fieldId: request.fieldId,
+          filename: request.filename,
+          data: request.data,
+        },
+        request.frameId,
+      )
+      if (!response.ok) return response
+      return { ok: true, type: 'attach' }
+    }
+
     case 'bg:saveAnswer': {
       await rememberAnswer(request)
+      void ensureContextEmbeddings()
       return { ok: true, type: 'saveAnswer' }
+    }
+
+    case 'bg:resolveLetterheadName': {
+      return { ok: true, type: 'letterheadName', name: await resolveLetterheadName() }
     }
 
     default:
@@ -56,13 +87,36 @@ async function handle(request: BackgroundRequest): Promise<BackgroundResponse> {
 }
 
 /**
+ * The content script lives in no page until a scan asks for it — a persistent script in every
+ * frame of every page is a machine-wide tax, and this way a rescan always delivers the current
+ * build (no more "reload the tab after updating Irke"). Inject only the frames we will scan
+ * (top + ATS/same-origin, not every ad iframe). The IIFE build finishes registering its
+ * listener before executeScript resolves, so the scan message cannot outrun it; a guard inside
+ * the script makes repeat injections a no-op. Pages Chrome refuses (chrome://, the Web Store)
+ * fail quietly here and surface as "cannot reach this page" from the scan itself.
+ */
+async function injectContentScript(tabId: number, frameIds: number[]): Promise<void> {
+  await Promise.all(
+    frameIds.map((frameId) =>
+      chrome.scripting
+        .executeScript({
+          target: { tabId, frameIds: [frameId] },
+          files: [contentScript],
+        })
+        .catch(() => {}),
+    ),
+  )
+}
+
+/**
  * ATS forms are often embedded in an iframe while the job description sits in the top frame,
- * so every frame is scanned and the one with the most fields wins. The top frame supplies the
- * job context when the winning frame is a bare form with no description.
+ * so candidate frames are scanned and the one with the most fields wins. The top frame supplies
+ * the job context when the winning frame is a bare form with no description.
  */
 async function scanTab(tabId: number): Promise<BackgroundResponse> {
   const frames = await chrome.webNavigation.getAllFrames({ tabId }).catch(() => null)
-  const frameIds = frames?.length ? frames.map((frame) => frame.frameId) : [0]
+  const frameIds = selectScanFrames(frames ?? [])
+  await injectContentScript(tabId, frameIds)
 
   const scans = await Promise.all(
     frameIds.map(async (frameId) => {

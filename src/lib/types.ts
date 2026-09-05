@@ -3,6 +3,18 @@ export type LlmProvider = 'openai' | 'openrouter'
 /** Fast = draft only; polished = draft + revise pass (default). */
 export type GenerationMode = 'fast' | 'polished'
 
+/**
+ * Contact details printed at the top of a generated cover letter. Documents only — Irke still
+ * never types any of this into a form field. Blank entries are left off the letter.
+ */
+export interface Letterhead {
+  name: string
+  email: string
+  phone: string
+  location: string
+  links: string
+}
+
 export interface Settings {
   provider: LlmProvider
   apiKey: string
@@ -16,10 +28,11 @@ export interface Settings {
    * Embeddings for new drafts still require a manual Build index.
    */
   includeGeneratedInRag: boolean
+  letterhead: Letterhead
 }
 
 /** Where a context document came from. Doubles as the tag prefixed onto every chunk. */
-export type ContextSource = 'story' | 'document' | 'drive' | 'github' | 'generated'
+export type ContextSource = 'story' | 'document' | 'drive' | 'github' | 'generated' | 'distilled'
 
 export interface ContextDoc {
   id: string
@@ -40,14 +53,20 @@ export interface ContextChunk {
   text: string
   /** Lowercased token counts, precomputed at ingest so retrieval stays cheap. */
   tokens: Record<string, number>
-  /** OpenAI embedding vector; filled by Build index. Absent until then — BM25 still works. */
-  embedding?: number[]
+  /**
+   * OpenAI embedding vector; filled by auto-embed / Build context. Absent until then — BM25
+   * still works. New writes store `Float32Array` (half the memory and clone cost of `number[]`
+   * on every chunk read); chunks embedded before that change still hold plain arrays.
+   */
+  embedding?: number[] | Float32Array
   embeddedAt?: number
 }
 
 export interface RetrievedChunk {
   chunk: ContextChunk
   score: number
+  /** Included because the user's steer matched it, not (only) because the question did. */
+  steered?: boolean
 }
 
 export interface AnswerBankEntry {
@@ -55,10 +74,17 @@ export interface AnswerBankEntry {
   /** Normalized question text; the upsert key when saving. */
   fingerprint: string
   question: string
+  /** The current pick — the one mirrored into the context index. */
   answer: string
   company: string
   updatedAt: number
   useCount: number
+  /**
+   * Every answer this question has had, oldest first, `answer` last. Regenerating appends rather
+   * than overwrites, so an earlier draft is still there if the newer one turned out worse.
+   * Absent on rows written before versioning; treat as `[answer]`.
+   */
+  versions?: string[]
 }
 
 /**
@@ -82,6 +108,8 @@ export interface DetectedQuestion {
   maxLength: number | null
   currentValue: string
   topic: StoryTopic
+  /** A file upload can be drafted and turned into a PDF, but never written to directly. */
+  control: 'text' | 'file'
 }
 
 export interface JobContext {
@@ -105,5 +133,13 @@ export interface GeneratedAnswer {
   answer: string
   source: 'llm'
   sources: string[]
+  /** Subset of `sources` that entered retrieval because the steer asked for them. */
+  steeredSources?: string[]
+  /**
+   * True when the index has vectors but the query embedding failed, so this draft was grounded
+   * by keyword match alone. Not set when the index simply has no vectors — that is the expected
+   * mode without an OpenAI / OpenRouter key, not a degradation.
+   */
+  degradedRetrieval?: boolean
   needsInput: boolean
 }

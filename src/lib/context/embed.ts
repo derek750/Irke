@@ -4,7 +4,7 @@ export const EMBEDDING_MODEL = 'text-embedding-3-small'
 const OPENROUTER_EMBEDDING_MODEL = 'openai/text-embedding-3-small'
 const BATCH_SIZE = 64
 
-type EmbeddingProvider = Extract<LlmProvider, 'openai' | 'openrouter'>
+export type EmbeddingProvider = Extract<LlmProvider, 'openai' | 'openrouter'>
 
 const EMBED_URLS: Record<EmbeddingProvider, string> = {
   openai: 'https://api.openai.com/v1/embeddings',

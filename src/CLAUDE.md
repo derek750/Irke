@@ -7,7 +7,7 @@ Chrome extension source. Four surfaces share one TypeScript package via path ali
 | Surface | Entry | Runs in |
 |---------|-------|---------|
 | Background | `background/index.ts` | Extension service worker |
-| Content | `content/index.ts` | Every frame on `<all_urls>` |
+| Content | `content/index.ts` | Injected on demand at scan time (selected frames of the scanned tab) — no static registration |
 | Side panel | `sidepanel/main.tsx` | Extension side panel |
 | Options | `options/main.tsx` | Extension options page |
 
@@ -16,6 +16,10 @@ Shared code lives under `lib/` and `ui/`. UI surfaces are React 19 + Vite; backg
 ## Scope
 
 Irke answers **story questions only** — cover letters, "tell us about a time", "why this company", "what are you proud of". It deliberately does not touch name, email, phone, salary, start date, work authorization, or demographics. There is no profile and no autofill of specifics. `content/detect.ts` drops those fields before they ever reach the UI.
+
+The panel also takes questions **typed by hand** (`sidepanel/manual.ts`), for a question the scan missed or a page it could not read. That is not autofill by another name: a typed question gets a `manual:` field id, no page control is behind it, and fill / attach are not even rendered for it — the draft only ever lives in the panel, to copy or download.
+
+A cover-letter **file upload** counts as a story question, since Irke can typeset that document (`lib/documents/cover-letter.ts`). It carries `control: 'file'`: the panel drafts it, and on an explicit **Attach PDF** click the content script sets the generated PDF on that input (`content:attach`) — the one file control Irke writes, user-initiated only, never submitted. Contact details for the letterhead live in Settings and are used only to typeset the document — never typed into a form.
 
 ## Message protocol
 
@@ -37,16 +41,24 @@ When adding a message type:
 Generation (`background/generate.ts`) always drafts via the LLM over retrieved context.
 Saved answers are **not** pasted back as-is.
 
-When the user saves an answer, it is stored in the answer bank **and** mirrored into the
-context index as `source: 'generated'` (`[PRIOR DRAFT]`). Those chunks only enter retrieval
-when Settings.`includeGeneratedInRag` is on (off by default). Embeddings still require a
-manual **Build index** on the Data tab.
+A per-question steer (the card's **Extra instructions**) reaches both halves of that: retrieval pins the steer's best-matching chunks to the front of the window, and the prompt carries the direction next to the question. `GeneratedAnswer.steeredSources` tells the panel which documents came in because of it.
+
+**Distill stories** (options Data tab) adds an LLM-condensed layer to the index: one markdown notes doc per document (`source: 'distilled'`, typed story cards in question vocabulary), searched in the same flat pool. Retrieval chains each distilled hit's parent document in behind it, so the model gets the card that matched and the original it condenses.
+
+Every generated answer is stored in the answer bank **and** mirrored into the context index
+as `source: 'generated'` (`[PRIOR DRAFT]`); editing a draft re-banks it on blur. Regenerating appends to
+`AnswerBankEntry.versions` rather than overwriting, so no attempt is lost to another click, but only the
+current answer is mirrored into the index. Those chunks only enter retrieval
+when Settings.`includeGeneratedInRag` is on (off by default). Embeddings maintain themselves:
+`ensureContextEmbeddings()` runs after every ingest path and after generate / save-answer whenever an OpenAI or
+OpenRouter key is set, so **Build context** on the Data tab is a backfill/rebuild, not a
+prerequisite.
 
 ## Storage boundaries
 
 | Store | API | Contents |
 |-------|-----|----------|
-| `chrome.storage.local` | `lib/settings.ts` | Settings (provider, API key, model, temperature, generation mode, includeGeneratedInRag, extra instructions) |
+| `chrome.storage.local` | `lib/settings.ts` | Settings (provider, API key, model, temperature, generation mode, includeGeneratedInRag, extra instructions, letterhead) |
 | `chrome.storage.local` | `lib/connections.ts` | Drive folder + GitHub OAuth session / repo selection |
 | IndexedDB `irke` | `lib/db.ts` | Context docs, chunks, answer-bank entries |
 

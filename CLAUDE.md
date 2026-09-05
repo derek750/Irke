@@ -4,6 +4,8 @@ Chrome Manifest V3 extension that reads a job description and the **story questi
 
 Irke deliberately ignores the specifics: name, email, phone, salary, start date, work authorization, demographics. Those are quick to type and disastrous to guess at. It only handles the questions that ask for a story.
 
+A cover-letter **file upload** is one of those questions: Irke drafts the letter, typesets it as a LaTeX-styled PDF, and on an explicit **Attach PDF** click sets that file on the detected cover-letter input — the only file control it ever writes, and only ever on the user's click. A **Download PDF** button keeps a copy or covers pages where attaching fails. It never submits anything.
+
 There is **no Irke backend**. Settings and connection state live in `chrome.storage.local`; context documents and the answer bank live in IndexedDB. The only network traffic is the browser talking directly to OpenAI or Anthropic, Google Drive, and GitHub.
 
 ## Repository layout
@@ -15,7 +17,7 @@ There is **no Irke backend**. Settings and connection state live in `chrome.stor
 | `src/lib/` | Shared types, messaging, storage, context index, connectors, prompts, LLM clients |
 | `src/sidepanel/` | Review / generate / fill UI (opened from the toolbar icon) |
 | `src/options/` | Dashboard: data, connectors, answer bank, AI provider |
-| `src/ui/` | Shared dark theme CSS |
+| `src/ui/` | Shared dark theme CSS, document fonts, and the components both UIs render |
 | `scripts/` | Dev smoke tests (retrieval, question detection) |
 | `manifest.config.ts` | CRXJS manifest source of truth |
 | `dist/` | Built extension — load this as unpacked in Chrome |
@@ -40,10 +42,10 @@ npm install
 npm run build # typecheck + vite → dist/
 npm run dev # Vite + CRXJS HMR; still load dist/ in Chrome
 npm run typecheck
-npm run smoke # BM25 retrieval + question-detection checks
+npm run smoke # retrieval, question-detection, prompt-contract, and generate-pipeline checks
 ```
 
-Load in Chrome: `chrome://extensions` → Developer mode → **Load unpacked** → select `dist/`. After code changes that touch the content script, reload the extension **and** the job application tab.
+Load in Chrome: `chrome://extensions` → Developer mode → **Load unpacked** → select `dist/`. The content script is injected at scan time (nothing persistent runs in pages), so after reloading the extension a **Rescan** in the panel is enough — no tab refresh needed.
 
 For the Google Drive connection, copy `.env.example` to `.env.local` and add a Google OAuth client id (application type: Chrome Extension) tied to your unpacked extension's id. Everything else works without it.
 
@@ -51,10 +53,10 @@ For the Google Drive connection, copy `.env.example` to `.env.local` and add a G
 
 ```
 Job page
- └── content script (all frames)
+ └── content script (injected on scan, selected frames of that tab)
  ├── scrape JD / company / title
  ├── detect story questions (drop every specific)
- └── fill controlled inputs
+ └── fill controlled inputs / attach the PDF
  ▲
  │ chrome.tabs.sendMessage
  │
@@ -70,12 +72,14 @@ options page ──▶ Google Drive folder ─┐
 
 Answer path: **context + LLM** (always). Saved answers are indexed as prior drafts and only enter retrieval when the user enables that setting — never pasted as-is. Never invent facts; missing required facts become `[NEED INPUT]`.
 
+Cover letters take one more step: the draft plus the Letterhead settings go through `src/lib/documents/cover-letter.ts`, which renders a `moderncv`-style PDF with `pdf-lib` and bundled Latin Modern — attached to the page's upload field on click, or downloaded.
+
 ## Agent guidelines
 
 1. **Minimize scope** — Match existing patterns; no drive-by refactors.
 2. **Privacy** — Never log API keys, the GitHub token, document text, or answer-bank contents. No Irke server; do not add one without an explicit request.
 3. **Safety** — Never auto-submit forms. Never touch CAPTCHA, honeypot, password, OTP, SSN, or payment fields (`src/content/detect.ts`).
-4. **Stay in scope** — Do not reintroduce profile autofill or detection of non-story fields without an explicit product change.
+4. **Stay in scope** — Do not reintroduce profile autofill or detection of non-story fields without an explicit product change. The Letterhead settings (name, email, phone, location, links) are the one stored contact detail, and they exist only to typeset a generated document — never to fill a form field.
 5. **Message contract** — Request/response unions live in `src/lib/messages.ts`. Keep background, content, and UI in sync when changing them.
 6. **No commits** unless the user asks. Do not commit `node_modules/`, `dist/`, `.env.local`, or user data.
 7. **Tests** — Prefer `npm run smoke` / small pure-function checks over heavy harnesses. The repo has little automated coverage.

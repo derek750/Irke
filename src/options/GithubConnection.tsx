@@ -5,6 +5,7 @@ import type { GithubConnection as GithubState } from '@/lib/connections'
 import { isGithubConfigured, listGithubRepos, signInWithGithub } from '@/lib/connectors/github'
 import type { GithubRepo } from '@/lib/connectors/github'
 import { syncGithub } from '@/lib/connectors/sync'
+import { ensureContextEmbeddings } from '@/lib/context/build-index'
 import { replaceDocsForSource } from '@/lib/db'
 import { errorMessage } from '@/lib/messages'
 import { SyncStatus, describeSync } from './SyncStatus'
@@ -88,6 +89,8 @@ export function GithubConnection({ onChanged }: GithubConnectionProps) {
       setGithub((await getConnections()).github)
       setStatus(describeSync(result.indexed, result.skipped, 'repository'))
       onChanged()
+      // Freshly synced chunks embed themselves so hybrid retrieval stays live.
+      void ensureContextEmbeddings()
     })
 
   const onDisconnect = () =>

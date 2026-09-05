@@ -2,8 +2,8 @@ import { chunkDoc } from './context/chunk'
 import type { AnswerBankEntry, ContextChunk, ContextDoc, ContextSource } from './types'
 
 const DB_NAME = 'irke'
-/** v3: chunks may carry optional `embedding` / `embeddedAt` (no new stores). */
-const DB_VERSION = 3
+/** v4: `embeddedAt` index so coverage / auto-embed can skip loading vectors. */
+const DB_VERSION = 4
 
 export const STORE_DOCS = 'context_docs'
 export const STORE_CHUNKS = 'context_chunks'
@@ -24,6 +24,7 @@ function openDb(): Promise<IDBDatabase> {
 
     request.onupgradeneeded = () => {
       const db = request.result
+      const tx = request.transaction
 
       for (const legacy of LEGACY_STORES) {
         if (db.objectStoreNames.contains(legacy)) db.deleteObjectStore(legacy)
@@ -36,6 +37,10 @@ function openDb(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(STORE_CHUNKS)) {
         const chunks = db.createObjectStore(STORE_CHUNKS, { keyPath: 'id' })
         chunks.createIndex('docId', 'docId')
+        chunks.createIndex('embeddedAt', 'embeddedAt')
+      } else if (tx) {
+        const chunks = tx.objectStore(STORE_CHUNKS)
+        if (!chunks.indexNames.contains('embeddedAt')) chunks.createIndex('embeddedAt', 'embeddedAt')
       }
       if (!db.objectStoreNames.contains(STORE_ANSWERS)) {
         const answers = db.createObjectStore(STORE_ANSWERS, { keyPath: 'id' })
@@ -128,6 +133,36 @@ export async function listChunks(): Promise<ContextChunk[]> {
   return withStore(STORE_CHUNKS, 'readonly', (store) =>
     promisify(store.getAll() as IDBRequest<ContextChunk[]>),
   )
+}
+
+/** Counts only — does not clone embedding vectors into JS. */
+export async function chunkCoverage(): Promise<{ embedded: number; total: number }> {
+  return withStore(STORE_CHUNKS, 'readonly', async (store) => {
+    const [total, embedded] = await Promise.all([
+      promisify(store.count()),
+      promisify(store.index('embeddedAt').count()),
+    ])
+    return { embedded, total }
+  })
+}
+
+/**
+ * Fetch chunks that still need a vector. Cheap when the gap is small (a just-saved answer);
+ * callers with a large backfill should `listChunks()` instead of issuing thousands of gets.
+ */
+export async function listUnembeddedChunks(): Promise<ContextChunk[]> {
+  return withStore(STORE_CHUNKS, 'readonly', async (store) => {
+    const [allKeys, embeddedKeys] = await Promise.all([
+      promisify(store.getAllKeys()),
+      promisify(store.index('embeddedAt').getAllKeys()),
+    ])
+    const embedded = new Set(embeddedKeys)
+    const missingKeys = allKeys.filter((key) => !embedded.has(key))
+    const chunks = await Promise.all(
+      missingKeys.map((key) => promisify(store.get(key) as IDBRequest<ContextChunk | undefined>)),
+    )
+    return chunks.filter((chunk): chunk is ContextChunk => Boolean(chunk))
+  })
 }
 
 /** Upsert chunks in place (used after embedding so we do not re-chunk). */

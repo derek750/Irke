@@ -187,6 +187,59 @@ label {
   color: var(--success);
 }
 
+.sources-popover {
+  position: relative;
+  display: inline-flex;
+}
+
+.sources-trigger {
+  padding: 2px 8px;
+  font-size: 11px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.sources-list {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 30;
+  width: max-content;
+  max-width: 280px;
+  /* Eight sources is normal; scroll rather than run off the panel. */
+  max-height: 220px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 5px;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.45);
+  text-align: left;
+}
+
+.sources-list li {
+  padding: 5px 7px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.sources-list li .badge {
+  margin-left: 6px;
+  vertical-align: 1px;
+}
+
+.sources-list li:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
 .notice {
   border-radius: 8px;
   padding: 8px 10px;

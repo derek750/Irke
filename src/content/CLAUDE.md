@@ -1,16 +1,16 @@
 # `src/content/`
 
-Content scripts injected into every frame (`all_frames: true`, `document_idle`). Pure DOM work: scrape the job, detect the story questions, write drafts into controlled inputs.
+The page-side script. **Not statically registered** — a persistent script in every frame of every page is a machine-wide tax (each ad iframe pays an isolated world plus instantiation), so the background injects `index.ts` with `chrome.scripting.executeScript` into the frames `selectScanFrames` picked (`?script&iife` build) when the user scans. Ads, analytics, and CAPTCHA iframes are skipped; at most 10 frames. A `window.__irkeContentReady` guard makes repeat injections a no-op, and every rescan ships the current build — no tab refresh after updating the extension. Pure DOM work: scrape the job, detect the story questions, write drafts into controlled inputs, attach the cover-letter PDF.
 
 ## Files
 
 | File | Responsibility |
 |------|----------------|
-| `index.ts` | Message listener for `content:scan` / `content:fill` / `content:highlight` |
+| `index.ts` | Message listener for `content:scan` / `content:fill` / `content:attach` / `content:highlight` |
 | `adapters.ts` | ATS-specific selectors (Greenhouse, Lever, Ashby, Workable, SmartRecruiters) + generic fallback |
 | `scrape.ts` | Job title, company, description text from the adapter |
 | `detect.ts` | Eligible controls → `DetectedQuestion[]`; story classification; blocked-field denylist |
-| `fill.ts` | Write values through native setters (React-safe), highlight flash |
+| `fill.ts` | Write values through native setters (React-safe), attach the generated PDF to the cover-letter input, highlight flash |
 
 ## Scan payload
 
@@ -20,7 +20,9 @@ Content scripts injected into every frame (`all_frames: true`, `document_idle`).
 
 Irke detects **story questions only**: cover letters, "tell us about a time", "why this company". Everything else on an application form — name, email, salary, work authorization, demographics — is deliberately ignored, because Irke has no profile to answer them from and guessing is the failure mode this design exists to avoid.
 
-Eligible controls: visible `textarea`, and visible `input[type=text]`. Skip disabled / readonly / aria-hidden. Selects, radios, and checkboxes are never detected — a story does not fit in one.
+Eligible controls: visible `textarea`, visible `input[type=text]`, and `input[type=file]` **labelled as a cover letter**. Skip disabled / readonly / aria-hidden. Selects, radios, and checkboxes are never detected — a story does not fit in one.
+
+A cover-letter upload is detected because Irke can typeset that document itself; resume, transcript, and portfolio uploads are somebody else's file and stay invisible. Uploads carry `control: 'file'` on `DetectedQuestion`: text never goes into them (`fillField` throws if asked), and the one write they ever receive is `attachFile` setting the generated PDF on an explicit **Attach PDF** click — a real `File` in a `DataTransfer`, then `input` + `change` so the upload widget reacts as if the user picked it. An `accept` attribute that excludes PDFs turns the attach into a clear error instead. ATS upload widgets hide the real input behind a styled button, so visibility is judged on the nearest visible ancestor (up to four levels) rather than the input.
 
 Classification lives in `classifyLabel` and `classify`:
 
@@ -29,6 +31,7 @@ Classification lives in `classifyLabel` and `classify`:
 3. A `textarea` with no topic match still counts as `open_ended` — the control type is signal enough
 4. A bare text input needs an explicit topic match; `open_ended` is too loose there
 5. A `textarea` with `maxLength` under 120 is a one-liner, not a story
+6. A file input needs `cover_letter` exactly; any other topic, or none, is rejected
 
 **Hard denylist** (never detect, never fill) — `BLOCKED_PATTERN`:
 
@@ -52,6 +55,7 @@ npm run smoke:detect
 
 - Write via the native `value` setter, then dispatch `input` + `change` (required for React / Vue controlled inputs).
 - Always scroll into view and flash outline; never click Submit.
+- File inputs take no text. The side panel shows **Attach PDF** instead of **Fill field** for them; `content:attach` is the only path that writes a file, it only carries the generated cover-letter PDF, and it only runs on the user's click.
 
 ## ATS adapters
 

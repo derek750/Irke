@@ -2,14 +2,26 @@ import { useCallback, useState } from 'react'
 
 import { sendToBackground } from '@/lib/messages'
 import type { DetectedQuestion, GeneratedAnswer, JobContext } from '@/lib/types'
+import { buildCoverLetterFile } from './cover-letter'
+import { bytesToBase64 } from './export'
 
 export interface DraftState {
   value: string
   status: 'idle' | 'generating' | 'ready' | 'filled'
   source: GeneratedAnswer['source'] | null
   sources: string[]
+  /** Sources the steer pulled into retrieval, so the panel can show the nudge landed. */
+  steeredSources: string[]
+  /** The semantic index exists but could not be reached for this draft (keyword match only). */
+  degraded: boolean
   needsInput: boolean
   error: string | null
+  /** What the answer bank already holds, so an untouched draft is never rewritten. */
+  savedValue: string | null
+  /** Optional per-question nudge, added to the standing instructions on every generate. */
+  steer: string
+  /** Every answer generated for this field this session, oldest first. Regenerating appends. */
+  history: string[]
 }
 
 const EMPTY_DRAFT: DraftState = {
@@ -17,8 +29,13 @@ const EMPTY_DRAFT: DraftState = {
   status: 'idle',
   source: null,
   sources: [],
+  steeredSources: [],
+  degraded: false,
   needsInput: false,
   error: null,
+  savedValue: null,
+  steer: '',
+  history: [],
 }
 
 export function useDrafts() {
@@ -31,10 +48,24 @@ export function useDrafts() {
     }))
   }, [])
 
-  const reset = useCallback(() => setDrafts({}), [])
+  /**
+   * Clears the drafts a rescan invalidated. `keep` survives it — the panel uses that for
+   * questions the user typed, which no page field backs and no rescan can stale.
+   */
+  const reset = useCallback((keep?: (fieldId: string) => boolean) => {
+    setDrafts((current) => {
+      if (!keep) return {}
+      return Object.fromEntries(Object.entries(current).filter(([fieldId]) => keep(fieldId)))
+    })
+  }, [])
 
   const setValue = useCallback(
     (fieldId: string, value: string) => patch(fieldId, { value, status: 'ready', error: null }),
+    [patch],
+  )
+
+  const setSteer = useCallback(
+    (fieldId: string, steer: string) => patch(fieldId, { steer }),
     [patch],
   )
 
@@ -42,7 +73,24 @@ export function useDrafts() {
     async (job: JobContext, question: DetectedQuestion, regenerate: boolean) => {
       patch(question.fieldId, { status: 'generating', error: null })
 
-      const response = await sendToBackground({ type: 'bg:generate', job, question, regenerate })
+      const draft = drafts[question.fieldId]
+      const value = draft?.value ?? ''
+      const attempts = draft?.history ?? []
+      // Text the user typed or edited is a commitment, not a rejection: the retry must build on
+      // it (refine). An untouched generated draft is the opposite — everything seen so far is
+      // off the table and the retry goes looking for a different answer.
+      const isEdited = value.trim().length > 0 && !attempts.includes(value)
+      const rejected = regenerate && !isEdited ? [...attempts, value] : []
+
+      const response = await sendToBackground({
+        type: 'bg:generate',
+        job,
+        question,
+        regenerate,
+        steer: draft?.steer.trim() || undefined,
+        previousAnswers: rejected.length ? rejected : undefined,
+        currentDraft: regenerate && isEdited ? value : undefined,
+      })
       if (!response.ok) {
         patch(question.fieldId, { status: 'idle', error: response.error })
         return
@@ -50,16 +98,31 @@ export function useDrafts() {
       if (response.type !== 'generate') return
 
       const { result } = response
+      const history = [...(draft?.history ?? []).filter((entry) => entry !== result.answer), result.answer]
       patch(question.fieldId, {
         value: result.answer,
         status: 'ready',
         source: result.source,
         sources: result.sources,
+        steeredSources: result.steeredSources ?? [],
+        degraded: result.degradedRetrieval ?? false,
         needsInput: result.needsInput,
         error: null,
+        // The generate pipeline banks its own output, so this is already stored.
+        savedValue: result.answer,
+        history,
       })
     },
-    [patch],
+    [drafts, patch],
+  )
+
+  /** Flip back to an earlier attempt. The answer bank kept them all; this is how they are reached. */
+  const showVersion = useCallback(
+    (fieldId: string, index: number) => {
+      const value = drafts[fieldId]?.history[index]
+      if (value !== undefined) patch(fieldId, { value, status: 'ready', error: null })
+    },
+    [drafts, patch],
   )
 
   const fill = useCallback(
@@ -73,21 +136,56 @@ export function useDrafts() {
     [drafts, patch],
   )
 
-  const save = useCallback(
+  /**
+   * Cover-letter uploads: typeset the answer as the PDF and set it on the page's file input,
+   * exactly as if the user had picked the file — on their click, never on generate.
+   */
+  const attach = useCallback(
+    async (job: JobContext, question: DetectedQuestion, frameId: number, body: string) => {
+      if (!body.trim()) return
+
+      try {
+        const { filename, bytes } = await buildCoverLetterFile(job, body)
+        const response = await sendToBackground({
+          type: 'bg:attach',
+          fieldId: question.fieldId,
+          filename,
+          data: bytesToBase64(bytes),
+          frameId,
+        })
+        patch(
+          question.fieldId,
+          response.ok ? { status: 'filled', error: null } : { error: response.error },
+        )
+      } catch (error) {
+        patch(question.fieldId, { error: error instanceof Error ? error.message : String(error) })
+      }
+    },
+    [patch],
+  )
+
+  /**
+   * Banks whatever the user has ended up with. Generation already saves its own output, so this
+   * only has work to do once a draft has been edited by hand.
+   */
+  const commit = useCallback(
     async (question: DetectedQuestion, company: string) => {
-      const value = drafts[question.fieldId]?.value ?? ''
-      if (!value.trim()) return
+      const draft = drafts[question.fieldId]
+      if (!draft?.value.trim() || draft.value === draft.savedValue) return
 
       const response = await sendToBackground({
         type: 'bg:saveAnswer',
         question: question.label,
-        answer: value,
+        answer: draft.value,
         company,
       })
-      if (!response.ok) patch(question.fieldId, { error: response.error })
+      patch(
+        question.fieldId,
+        response.ok ? { savedValue: draft.value } : { error: response.error },
+      )
     },
     [drafts, patch],
   )
 
-  return { drafts, setValue, generate, fill, save, reset }
+  return { drafts, setValue, setSteer, generate, showVersion, fill, attach, commit, reset }
 }

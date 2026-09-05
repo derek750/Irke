@@ -10,6 +10,7 @@ export const SOURCE_TAGS: Record<ContextSource, string> = {
   drive: '[GOOGLE DRIVE]',
   github: '[GITHUB]',
   generated: '[PRIOR DRAFT]',
+  distilled: '[DISTILLED NOTES]',
 }
 
 export const SOURCE_LABELS: Record<ContextSource, string> = {
@@ -18,6 +19,17 @@ export const SOURCE_LABELS: Record<ContextSource, string> = {
   drive: 'Google Drive',
   github: 'GitHub',
   generated: 'Generated',
+  distilled: 'Distilled notes',
+}
+
+/** Distilled notes live under a stable id derived from the document they condense. */
+export function distilledDocId(parentId: string): string {
+  return `distilled:${parentId}`
+}
+
+/** The document a distilled doc condenses, or null when the doc is not distilled notes. */
+export function distilledParentId(docId: string): string | null {
+  return docId.startsWith('distilled:') ? docId.slice('distilled:'.length) : null
 }
 
 /**
