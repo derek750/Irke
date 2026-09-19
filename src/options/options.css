@@ -25,6 +25,10 @@
   width: 100%;
 }
 
+.topbar-primary > .brand {
+  margin-right: 8px;
+}
+
 .topbar-primary,
 .topbar-trailing {
   display: flex;

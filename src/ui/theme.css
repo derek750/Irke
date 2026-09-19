@@ -40,6 +40,26 @@ h1 {
   letter-spacing: -0.01em;
 }
 
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+.brand img {
+  width: 28px;
+  height: 28px;
+  display: block;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 6px;
+}
+
 h2 {
   font-size: 14px;
 }

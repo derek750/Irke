@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
 
+import logo from '@/assets/logo.png'
 import { AiTab } from './AiTab'
 import { ConnectorsTab } from './ConnectorsTab'
 import { DataTab } from './DataTab'
@@ -119,6 +120,10 @@ export function Options() {
       <nav className="topbar" aria-label="Main">
         <div className="topbar-inner">
           <div className="topbar-primary">
+            <div className="brand" aria-label="Irke">
+              <img src={logo} alt="" width={28} height={28} />
+              <span>Irke</span>
+            </div>
             {PRIMARY_NAVS.map((nav) => (
               <NavButton
                 key={nav.id}

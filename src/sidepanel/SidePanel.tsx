@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 
+import logo from '@/assets/logo.png'
 import { sendToBackground } from '@/lib/messages'
 import type { DetectedQuestion, JobContext, PageScan } from '@/lib/types'
 import { AddQuestion } from './AddQuestion'
@@ -70,7 +71,10 @@ export function SidePanel() {
     <div className="panel">
       <header className="panel-header">
         <div className="title-row">
-          <h1>Irke</h1>
+          <h1 className="brand">
+            <img src={logo} alt="" width={28} height={28} />
+            Irke
+          </h1>
           <div className="row">
             <button className="ghost" onClick={() => chrome.runtime.openOptionsPage()}>
               Dashboard

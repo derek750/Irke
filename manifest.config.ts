@@ -28,8 +28,20 @@ export default defineManifest({
         },
       }
     : {}),
+  icons: {
+    '16': 'src/assets/icon-16.png',
+    '32': 'src/assets/icon-32.png',
+    '48': 'src/assets/icon-48.png',
+    '128': 'src/assets/icon-128.png',
+  },
   action: {
     default_title: 'Open Irke',
+    default_icon: {
+      '16': 'src/assets/icon-16.png',
+      '32': 'src/assets/icon-32.png',
+      '48': 'src/assets/icon-48.png',
+      '128': 'src/assets/icon-128.png',
+    },
   },
   options_page: 'src/options/index.html',
   side_panel: {
