@@ -18,6 +18,8 @@ export default defineManifest({
   short_name: 'Irke',
   version: pkg.version,
   description: pkg.description,
+  homepage_url: 'https://github.com/derek750/Irke',
+  minimum_chrome_version: '116',
   permissions: ['storage', 'sidePanel', 'activeTab', 'scripting', 'webNavigation', 'identity'],
   host_permissions: ['<all_urls>'],
   ...(googleClientId

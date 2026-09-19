@@ -1,12 +1,13 @@
 {
   "name": "irke",
   "private": true,
-  "version": "0.1.1",
+  "version": "1.0.0",
   "type": "module",
-  "description": "Drafts open-ended application answers from your own notes, Drive, and GitHub.",
+  "description": "Drafts answers to questions about you on job applications from your own notes, Drive, and GitHub.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
+    "pack": "npm run build && node scripts/pack-extension.mjs",
     "typecheck": "tsc --noEmit",
     "smoke": "npm run smoke:retrieval && npm run smoke:detect && npm run smoke:prompt && npm run smoke:generate && npm run smoke:scan-frames",
     "smoke:scan-frames": "esbuild scripts/smoke-scan-frames.ts --bundle --platform=node --format=esm --outfile=node_modules/.cache/irke-scan-frames.mjs --log-level=error && node node_modules/.cache/irke-scan-frames.mjs",

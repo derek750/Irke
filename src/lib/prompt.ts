@@ -61,7 +61,7 @@ const WRITING_SKILL = [
 
 export function buildSystemPrompt(extraInstructions: string): string {
   const base = [
-    'You are drafting the open-ended, story-style questions on a job application, on behalf of a candidate.',
+    'You are drafting the open-ended questions about the candidate on a job application, on their behalf.',
     'Write in first person, as the candidate, in their own voice and at their own level of plainness.',
     'Ground every factual claim in the provided context excerpts or the job description. The excerpts are the candidate own material: stories they wrote, their documents, their Google Drive files, and their GitHub projects.',
     `Never invent employers, job titles, dates, degrees, certifications, metrics, or anecdotes. If the story needs a fact you were not given, write ${NEEDS_INPUT_MARKER} where it belongs.`,

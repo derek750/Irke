@@ -88,8 +88,9 @@ export interface AnswerBankEntry {
 }
 
 /**
- * The kind of story a question is fishing for. Drives the guidance handed to the model,
- * and is the reason a field was kept at all — Irke ignores everything that is not one of these.
+ * The kind of question about the applicant this field is asking. Drives the guidance handed to
+ * the model, and is the reason a field was kept at all — Irke ignores logistics and identity
+ * specifics that are not one of these.
  */
 export type StoryTopic =
   | 'cover_letter'

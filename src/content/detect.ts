@@ -38,7 +38,7 @@ const TOPIC_PATTERNS: [StoryTopic, RegExp][] = [
   ['open_ended', /tell (us|me) about (yourself|you)|anything else|additional (info|information|comments)|share|describe|explain|why|how|what/i],
 ]
 
-/** Below this a textarea is a one-liner (a link, a headline), not somewhere a story fits. */
+/** Below this a textarea is a one-liner (a link, a headline), not a written answer about the applicant. */
 const MIN_STORY_MAX_LENGTH = 120
 
 /** How far up to look for the visible widget wrapping a hidden file input. */
@@ -65,8 +65,8 @@ export function scanQuestions(root: ParentNode = document): DetectedQuestion[] {
 }
 
 /**
- * The label alone decides whether a field is a story question. Returns null for specifics
- * (name, salary, work authorization) and for anything that reads like neither.
+ * The label alone decides whether a field is a question about the applicant. Returns null
+ * for specifics (name, salary, work authorization) and for anything that reads like neither.
  */
 export function classifyLabel(label: string): StoryTopic | null {
   if (SPECIFICS_PATTERN.test(label)) return null
@@ -74,8 +74,8 @@ export function classifyLabel(label: string): StoryTopic | null {
 }
 
 /**
- * Story answers only ever land in a textarea, or occasionally a long single-line input that an
- * ATS uses for a short "why us". Everything else on an application form is a specific.
+ * Answers about the applicant only ever land in a textarea, or occasionally a long single-line
+ * input that an ATS uses for a short "why us". Everything else on an application form is a specific.
  */
 function classify(label: string, control: FormControl): StoryTopic | null {
   const matched = classifyLabel(label)
@@ -91,7 +91,7 @@ function classify(label: string, control: FormControl): StoryTopic | null {
     return matched ?? 'open_ended'
   }
 
-  // A bare text input needs to name the story outright; open_ended is too loose a signal here.
+  // A bare text input needs to name the question about the applicant outright; open_ended is too loose here.
   return matched && matched !== 'open_ended' ? matched : null
 }
 

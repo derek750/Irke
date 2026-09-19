@@ -66,3 +66,7 @@ npm run smoke:scan-frames
 ```
 
 Do not put production logic here. Keep the scripts dependency-light (esbuild-bundled via the npm scripts).
+
+## `pack-extension.mjs`
+
+Zips `dist/` to `store/irke.zip`, excluding source maps. Invoked by `npm run pack` after a production build.
