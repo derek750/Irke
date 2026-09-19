@@ -10,12 +10,12 @@ Shared domain logic used by background, content (types/messages only), side pane
 | `messages.ts` | Typed message unions + `sendToBackground` / `sendToTab` |
 | `settings.ts` | Settings get/set via `chrome.storage.local`; defaults (`generationMode`, `includeGeneratedInRag`, `letterhead`); `reconcileProvider` |
 | `connections.ts` | Google Drive + GitHub connection state via `chrome.storage.local` |
-| `connectors/` | Drive API, GitHub API, PDF text extraction, and the sync jobs that feed the index (see `connectors/CLAUDE.md`) |
+| `connectors/` | Drive API, GitHub API, PDF text extraction, and the sync jobs that feed the index (see `connectors/AGENTS.md`) |
 | `db.ts` | IndexedDB (`irke`): context docs, chunks, answer bank |
 | `answer-bank.ts` | Question fingerprinting, save/update/delete, version history; mirrors the current answer into a `source: 'generated'` index doc |
 | `prompt.ts` | Draft + revise prompt builders; context-reading and writing skills; per-topic guidance; `[NEED INPUT]` contract; optional `previous` section for regenerates |
 | `llm.ts` | BYOK OpenAI + Anthropic chat completions |
-| `context/` | Chunking, tokenization, BM25 + optional embedding hybrid retrieval (see `context/CLAUDE.md`) |
+| `context/` | Chunking, tokenization, BM25 + optional embedding hybrid retrieval (see `context/AGENTS.md`) |
 | `documents/` | `cover-letter.ts`: a draft plus a letterhead typeset as a `moderncv`-style PDF |
 
 ## Storage keys / stores
@@ -29,7 +29,7 @@ Schema upgrades go through `DB_VERSION` + `onupgradeneeded` in `db.ts`. Bump the
 
 ## Connectors
 
-See `connectors/CLAUDE.md` for auth, sync contract, and what gets indexed. Short version: syncs are authoritative per source (`replaceDocsForSource`), run from the **options page** (not the worker), and never pull GitHub source files.
+See `connectors/AGENTS.md` for auth, sync contract, and what gets indexed. Short version: syncs are authoritative per source (`replaceDocsForSource`), run from the **options page** (not the worker), and never pull GitHub source files.
 
 ## Prompt contract
 

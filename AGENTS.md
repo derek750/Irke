@@ -24,16 +24,16 @@ There is **no Irke backend**. Settings and connection state live in `chrome.stor
 
 Read nested guides before editing each area:
 
-- `src/CLAUDE.md` — message protocol, storage boundaries, answer-source priority
-- `src/background/CLAUDE.md` — service worker flows
-- `src/content/CLAUDE.md` — DOM scraping, story detection, fill safety
-- `src/lib/CLAUDE.md` — shared types, storage, prompts, LLM, IndexedDB
-- `src/lib/context/CLAUDE.md` — chunking, BM25 / hybrid retrieval, Build index
-- `src/lib/connectors/CLAUDE.md` — Drive, GitHub, PDF, sync jobs
-- `src/sidepanel/CLAUDE.md` — panel UI and draft state
-- `src/options/CLAUDE.md` — Dashboard (Data / Connectors / Answer bank / AI)
-- `src/ui/CLAUDE.md` — shared theme tokens
-- `scripts/CLAUDE.md` — smoke tests
+- `src/AGENTS.md` — message protocol, storage boundaries, answer-source priority
+- `src/background/AGENTS.md` — service worker flows
+- `src/content/AGENTS.md` — DOM scraping, story detection, fill safety
+- `src/lib/AGENTS.md` — shared types, storage, prompts, LLM, IndexedDB
+- `src/lib/context/AGENTS.md` — chunking, BM25 / hybrid retrieval, Build index
+- `src/lib/connectors/AGENTS.md` — Drive, GitHub, PDF, sync jobs
+- `src/sidepanel/AGENTS.md` — panel UI and draft state
+- `src/options/AGENTS.md` — Dashboard (Data / Connectors / Answer bank / AI)
+- `src/ui/AGENTS.md` — shared theme tokens
+- `scripts/AGENTS.md` — smoke tests
 
 ## Development
 
