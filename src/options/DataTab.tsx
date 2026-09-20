@@ -23,6 +23,7 @@ export function DataTab() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [openSources, setOpenSources] = useState<Partial<Record<ContextSource, boolean>>>({})
+  const [openDocs, setOpenDocs] = useState<Set<string>>(() => new Set())
   const fileInput = useRef<HTMLInputElement>(null)
 
   const refresh = useCallback(() => {
@@ -230,6 +231,15 @@ export function DataTab() {
   const isSourceOpen = (source: ContextSource) =>
     query.trim() ? true : (openSources[source] ?? false)
 
+  const toggleDoc = (id: string) => {
+    setOpenDocs((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+
   return (
     <section className="section">
       {error && <div className="notice error">{error}</div>}
@@ -291,17 +301,41 @@ export function DataTab() {
               </button>
               {open && (
                 <div className="source-group-body">
-                  {group.items.map((doc) => (
-                    <div key={doc.id} className="doc-item">
-                      <div className="doc-main">
-                        <div className="doc-title">{doc.title}</div>
-                        <div className="doc-preview">{doc.text.slice(0, 120)}</div>
+                  {group.items.map((doc) => {
+                    const expanded = openDocs.has(doc.id)
+                    return (
+                      <div key={doc.id} className={`doc-item${expanded ? ' is-open' : ''}`}>
+                        <div className="doc-item-row">
+                          <button
+                            type="button"
+                            className="doc-item-toggle"
+                            onClick={() => toggleDoc(doc.id)}
+                            aria-expanded={expanded}
+                          >
+                            <span className="source-group-chevron" aria-hidden="true">
+                              {expanded ? '▾' : '▸'}
+                            </span>
+                            <div className="doc-main">
+                              <div className="doc-title">{doc.title}</div>
+                              {!expanded && (
+                                <div className="doc-preview">{doc.text.slice(0, 120)}</div>
+                              )}
+                            </div>
+                          </button>
+                          {!expanded && (
+                            <button
+                              type="button"
+                              className="ghost danger doc-item-remove"
+                              onClick={() => void onDelete(doc)}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                        {expanded && <div className="doc-body">{doc.text}</div>}
                       </div>
-                      <button className="ghost danger" onClick={() => onDelete(doc)}>
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>

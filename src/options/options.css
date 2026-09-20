@@ -261,17 +261,46 @@
 
 .doc-item {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  flex-direction: column;
   background: var(--bg);
   border: 1px solid var(--border);
   border-radius: var(--radius);
 }
 
+.doc-item-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.doc-item-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  padding: 10px 8px 10px 10px;
+  border: none;
+  border-radius: var(--radius);
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
+.doc-item-toggle:hover:not(:disabled) {
+  background: var(--surface-raised);
+  border-color: transparent;
+}
+
 .doc-item .doc-main {
   flex: 1;
   min-width: 0;
+}
+
+.doc-item-remove {
+  margin-right: 10px;
+  flex-shrink: 0;
 }
 
 .doc-title {
@@ -287,6 +316,17 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.doc-body {
+  margin: 0 12px 12px 28px;
+  max-height: 360px;
+  overflow: auto;
+  font-size: 12px;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .save-bar {
