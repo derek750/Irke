@@ -2,7 +2,7 @@
   <img src="src/assets/logo.png" alt="Irke" width="128">
 </p>
 
-<h1 align="center">Irke</h1>
+<h1 align="center"><a href="https://chromewebstore.google.com/detail/irke/baeafmkcbebgjcccblamomncjcfhpkic">Irke</a></h1>
 
 <p align="center">
   Drafts the questions about you on a job application from your own notes, Drive, and GitHub.<br>
