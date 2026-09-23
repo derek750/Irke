@@ -10,12 +10,7 @@
 </p>
 
 <p align="center">
-  <a href="https://chromewebstore.google.com/detail/irke/baeafmkcbebgjcccblamomncjcfhpkic">
-    <img src="assets/chrome-web-store-badge.png" alt="Available in the Chrome Web Store" height="58">
-  </a>
-</p>
-
-<p align="center">
+  <a href="https://chromewebstore.google.com/detail/irke/baeafmkcbebgjcccblamomncjcfhpkic"><img src="https://img.shields.io/badge/extension-live-2ea44f?style=flat-square&logo=googlechrome&logoColor=white" alt="extension: live"></a>
   <a href="https://chromewebstore.google.com/detail/irke/baeafmkcbebgjcccblamomncjcfhpkic"><img src="https://img.shields.io/chrome-web-store/users/baeafmkcbebgjcccblamomncjcfhpkic?style=flat-square&label=downloads" alt="downloads"></a>
   <a href="https://github.com/derek750/Irke/releases"><img src="https://img.shields.io/github/package-json/v/derek750/Irke?label=release&style=flat-square" alt="Release"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License: MIT"></a>
