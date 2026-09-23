@@ -1,12 +1,25 @@
-<div align="center">
-  <img src="src/assets/logo.png" alt="Irke" width="200" />
-  <h1>Irke</h1>
-  <p>
-    <a href="https://github.com/derek750/Irke/releases"><img alt="Release" src="https://img.shields.io/github/package-json/v/derek750/Irke?label=release" /></a>
-    <a href="LICENSE"><img alt="License: MIT" src="https://img.shields.io/badge/license-MIT-blue.svg" /></a>
-  </p>
-  <p>Drafts the questions about you on a job application from your own notes, Drive, and GitHub.<br>Local retrieval, bring-your-own API key. No Irke backend.</p>
-</div>
+<p align="center">
+  <img src="src/assets/logo.png" alt="Irke" width="128">
+</p>
+
+<h1 align="center">Irke</h1>
+
+<p align="center">
+  Drafts the questions about you on a job application from your own notes, Drive, and GitHub.<br>
+  Local retrieval, bring-your-own API key.
+</p>
+
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/irke/baeafmkcbebgjcccblamomncjcfhpkic">
+    <img src="assets/chrome-web-store-badge.png" alt="Available in the Chrome Web Store" height="58">
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://chromewebstore.google.com/detail/irke/baeafmkcbebgjcccblamomncjcfhpkic"><img src="https://img.shields.io/chrome-web-store/users/baeafmkcbebgjcccblamomncjcfhpkic?style=flat-square&label=downloads" alt="downloads"></a>
+  <a href="https://github.com/derek750/Irke/releases"><img src="https://img.shields.io/github/package-json/v/derek750/Irke?label=release&style=flat-square" alt="Release"></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue.svg?style=flat-square" alt="License: MIT"></a>
+</p>
 
 ---
 
@@ -20,6 +33,8 @@ There is no Irke server. Settings live in `chrome.storage.local`. Your documents
 
 ---
 
+
+
 ## Features
 
 - **Questions about you** — cover letters, behavioral prompts, “why us.” Name, email, salary, and the rest are ignored on purpose.
@@ -31,6 +46,8 @@ There is no Irke server. Settings live in `chrome.storage.local`. Your documents
 - **Never submits** — fill and attach are explicit. CAPTCHA, passwords, OTP, SSN, and payment fields are never touched.
 
 ---
+
+
 
 ## How it works
 
@@ -56,20 +73,28 @@ Dashboard ──▶ Drive folder / GitHub READMEs / stories / uploads
 
 ---
 
+
+
 ## Tech stack
 
-| Layer | Technologies |
-|-------|-------------|
-| Extension | Chrome Manifest V3, CRXJS, Vite 6, TypeScript |
-| UI | React 19, shared dark theme (`src/ui/theme.css`) |
-| Retrieval | IndexedDB, BM25, optional OpenAI / OpenRouter embeddings |
-| LLM | OpenAI or OpenRouter (BYOK) |
-| Documents | pdf-lib, Latin Modern, pdf.js for ingest |
-| Connectors | Google Drive (readonly OAuth), GitHub OAuth |
+
+| Layer      | Technologies                                             |
+| ---------- | -------------------------------------------------------- |
+| Extension  | Chrome Manifest V3, CRXJS, Vite 6, TypeScript            |
+| UI         | React 19, shared dark theme (`src/ui/theme.css`)         |
+| Retrieval  | IndexedDB, BM25, optional OpenAI / OpenRouter embeddings |
+| LLM        | OpenAI or OpenRouter (BYOK)                              |
+| Documents  | pdf-lib, Latin Modern, pdf.js for ingest                 |
+| Connectors | Google Drive (readonly OAuth), GitHub OAuth              |
+
 
 ---
 
+
+
 ## Getting started
+
+
 
 ### Prerequisites
 
@@ -77,6 +102,8 @@ Dashboard ──▶ Drive folder / GitHub READMEs / stories / uploads
 - **Chrome** (Developer mode)
 - An **OpenAI** or **OpenRouter** API key for generation
 - Optional: Google OAuth client (Chrome Extension type) for Drive, GitHub OAuth app for GitHub
+
+
 
 ### Setup
 
@@ -86,12 +113,14 @@ npm run build    # typecheck + vite → dist/
 npm run dev      # Vite + CRXJS HMR; still load dist/ in Chrome
 ```
 
+
+
 ### Load in Chrome (unpacked)
 
 1. Run `npm run build`.
 2. Open `chrome://extensions`.
 3. Turn on **Developer mode**.
-4. Click **Load unpacked** and choose the **`dist/`** folder.
+4. Click **Load unpacked** and choose the `dist/` folder.
 
 The toolbar icon opens the side panel. The content script is injected at scan time, so after reloading the extension a **Rescan** is enough — no tab refresh.
 
@@ -99,19 +128,25 @@ The toolbar icon opens the side panel. The content script is injected at scan ti
 
 Copy `.env.example` to `.env` and fill in what you need, then rebuild. Leave a value unset and that connection stays unavailable; everything else still works.
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `VITE_GOOGLE_CLIENT_ID` | No | Google Cloud OAuth client (application type: Chrome Extension), tied to your unpacked extension ID. Enable the Drive API. |
-| `VITE_GITHUB_CLIENT_ID` | No | GitHub OAuth App client ID. Callback: `https://<extension-id>.chromiumapp.org/` |
-| `VITE_GITHUB_CLIENT_SECRET` | No | GitHub still requires the secret on token exchange |
+
+| Variable                    | Required | Description                                                                                                               |
+| --------------------------- | -------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `VITE_GOOGLE_CLIENT_ID`     | No       | Google Cloud OAuth client (application type: Chrome Extension), tied to your unpacked extension ID. Enable the Drive API. |
+| `VITE_GITHUB_CLIENT_ID`     | No       | GitHub OAuth App client ID. Callback: `https://<extension-id>.chromiumapp.org/`                                           |
+| `VITE_GITHUB_CLIENT_SECRET` | No       | GitHub still requires the secret on token exchange                                                                        |
+
 
 Provider keys are entered in the dashboard (Settings), not in `.env`.
 
 ---
 
+
+
 ## Chrome Web Store
 
-Listing copy, permission justifications, privacy-practices answers, and the screenshot checklist live in [`store/listing.md`](store/listing.md). The privacy policy URL for the console is [`PRIVACY.md`](PRIVACY.md).
+[Irke on the Chrome Web Store](https://chromewebstore.google.com/detail/irke/baeafmkcbebgjcccblamomncjcfhpkic).
+
+Listing copy, permission justifications, privacy-practices answers, and the screenshot checklist live in `[store/listing.md](store/listing.md)`. The privacy policy URL for the console is `[PRIVACY.md](PRIVACY.md)`.
 
 ```bash
 npm run pack   # production build → store/irke.zip (source maps omitted)
@@ -121,6 +156,8 @@ Upload `store/irke.zip` at [Chrome Web Store Developer Dashboard](https://chrome
 
 ---
 
+
+
 ## Development
 
 ```bash
@@ -129,6 +166,8 @@ npm run smoke    # retrieval, question detection, prompt contract, generate pipe
 ```
 
 ---
+
+
 
 ## Repo layout
 
@@ -148,8 +187,11 @@ npm run smoke    # retrieval, question detection, prompt contract, generate pipe
 
 ---
 
+
+
 ## Privacy
 
 - No Irke backend.
 - API keys, GitHub tokens, document text, and the answer bank are not logged.
 - Letterhead (name, email, phone, location, links) exists only to typeset a generated document. It is never written into a form field.
+
